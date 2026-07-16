@@ -7,6 +7,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Engine-Gemini%20Flash-8E75B2)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
 为中文母语读者打造的英文阅读伴侣。设计原则只有一条：**打断最小、回到阅读最快**——它不是词典，不是翻译软件，也不是语言学习系统。
 
@@ -82,3 +83,7 @@ macos/       macOS 菜单栏工具（Swift Package，AppKit，macOS 13+）
 docs/adr/    架构决策记录
 CONTEXT.md   领域语言：载体、选区、上下文、解释卡、触发、引擎……
 ```
+
+## 许可
+
+[MIT](./LICENSE)
