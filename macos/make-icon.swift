@@ -8,27 +8,36 @@ let canvas: CGFloat = 1024
 let inset: CGFloat = 100
 let cornerRadius: CGFloat = 186
 
-// K=黑 W=白 P=腮红 .=透明
+// D=深色描边 G=绿羽 R=红呆毛 O=橙喙 W=白眼圈 K=瞳孔 L=浅色腹部 P=腮红 .=透明
 let sprite = [
-    "..KK........KK..",
-    ".KKKK......KKKK.",
-    ".KKKKKKKKKKKKKK.",
-    ".KWWWWWWWWWWWWK.",
-    ".KWWWWWWWWWWWWK.",
-    ".KWKKKWWWWKKKWK.",
-    ".KWKWKWWWWKWKWK.",
-    ".KWKKKWWWWKKKWK.",
-    ".KWWWWWKKWWWWWK.",
-    ".KWPWWWWWWWWPWK.",
-    ".KWWWWWWWWWWWWK.",
-    "..KKWWWWWWWWKK..",
-    "....KKKKKKKK....",
+    ".........DDD........",
+    "........DRRRD.......",
+    "...DDDDDDRRRDDDDD...",
+    "..DGGGGGGGRGGGGGGD..",
+    ".DGGGGGGGGGGGGGGGGD.",
+    ".DGGWWWWGGGGWWWWGGD.",
+    ".DGGWKKWGGGGWKKWGGD.",
+    ".DGGWKKWGGGGWKKWGGD.",
+    ".DGGWWWWGGGGWWWWGGD.",
+    ".DGGGGGGOOOOGGGGGGD.",
+    ".DGGGGGGGOOGGGGGGGD.",
+    ".DGGPGGGGGGGGGGPGGD.",
+    ".DGGGLLLLLLLLLLGGGD.",
+    "..DGGLLLLLLLLLLGGD..",
+    "...DGGLLLLLLLLGGD...",
+    "....DDGGLLLLGGDD....",
+    "......DDDDDDDD......",
 ]
 
 let palette: [Character: NSColor] = [
-    "K": NSColor(calibratedRed: 0.10, green: 0.11, blue: 0.13, alpha: 1),
+    "D": NSColor(calibratedRed: 0.13, green: 0.15, blue: 0.17, alpha: 1),
+    "G": NSColor(calibratedRed: 0.24, green: 0.73, blue: 0.35, alpha: 1),
+    "R": NSColor(calibratedRed: 0.91, green: 0.31, blue: 0.25, alpha: 1),
+    "O": NSColor(calibratedRed: 0.96, green: 0.62, blue: 0.11, alpha: 1),
     "W": .white,
-    "P": NSColor(calibratedRed: 1.00, green: 0.65, blue: 0.71, alpha: 1),
+    "K": NSColor(calibratedRed: 0.10, green: 0.11, blue: 0.13, alpha: 1),
+    "L": NSColor(calibratedRed: 0.78, green: 0.93, blue: 0.62, alpha: 1),
+    "P": NSColor(calibratedRed: 0.98, green: 0.66, blue: 0.72, alpha: 1),
 ]
 
 let rep = NSBitmapImageRep(
@@ -43,14 +52,14 @@ let shape = NSBezierPath(
     roundedRect: NSRect(x: inset, y: inset, width: canvas - inset * 2, height: canvas - inset * 2),
     xRadius: cornerRadius, yRadius: cornerRadius
 )
-// 品牌色 #0969da 一族：上亮下深
+// 白底（微渐变到浅灰，避免死白）
 NSGradient(colors: [
-    NSColor(calibratedRed: 0.18, green: 0.56, blue: 1.00, alpha: 1),
-    NSColor(calibratedRed: 0.02, green: 0.32, blue: 0.71, alpha: 1),
+    NSColor(calibratedRed: 1.00, green: 1.00, blue: 1.00, alpha: 1),
+    NSColor(calibratedRed: 0.92, green: 0.93, blue: 0.95, alpha: 1),
 ])!.draw(in: shape, angle: -90)
 
 // 逐格画像素（整数对齐、无抗锯齿感）
-let cell: CGFloat = 44
+let cell: CGFloat = 40
 let cols = sprite[0].count
 let rows = sprite.count
 let originX = (canvas - CGFloat(cols) * cell) / 2
