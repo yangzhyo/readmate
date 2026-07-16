@@ -8,13 +8,19 @@ final class EventTap {
     /// 返回 true 表示 Esc 已被消费（解释卡正显示并被关闭）
     var onEscape: (() -> Bool)?
 
+    /// 连按两下 ⌥ 触发（默认开，可在设置里关）
+    var doubleTapEnabled = true
+
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var hotkeyKeyCode: Int64 = 17
     private var hotkeyFlags: CGEventFlags = .maskAlternate
+    private var previousRelevantFlags: CGEventFlags = []
+    private var lastLoneOptionDownTime: TimeInterval = 0
 
     private static let keyCodeEscape: Int64 = 53
     private static let relevantFlags: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
+    private static let doubleTapWindow: TimeInterval = 0.4
     private static let chromeBundleIDs: Set<String> = [
         "com.google.Chrome",
         "com.google.Chrome.beta",
@@ -37,7 +43,7 @@ final class EventTap {
     /// 需要辅助功能权限；未授权时创建失败，返回 false
     func start() -> Bool {
         guard tap == nil else { return true }
-        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let mask = CGEventMask((1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue))
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             let eventTap = Unmanaged<EventTap>.fromOpaque(refcon!).takeUnretainedValue()
             return eventTap.handle(type: type, event: event)
@@ -64,7 +70,27 @@ final class EventTap {
             return Unmanaged.passUnretained(event)
         }
 
+        // 双击 ⌥：两次「单独按下 Option」间隔在窗口内，且中间没有敲过别的键。
+        // 裸修饰键的点按对底下的应用是无操作，无需吞事件，也不与终端的 Meta 用法冲突。
+        if type == .flagsChanged {
+            let mods = event.flags.intersection(Self.relevantFlags)
+            defer { previousRelevantFlags = mods }
+            if doubleTapEnabled, mods == .maskAlternate, previousRelevantFlags.isEmpty {
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - lastLoneOptionDownTime <= Self.doubleTapWindow {
+                    lastLoneOptionDownTime = 0
+                    DispatchQueue.main.async { [weak self] in self?.onTrigger?() }
+                } else {
+                    lastLoneOptionDownTime = now
+                }
+            } else if !mods.isEmpty, mods != .maskAlternate {
+                lastLoneOptionDownTime = 0
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        lastLoneOptionDownTime = 0 // 敲了实键就不算连按 ⌥
 
         if keyCode == Self.keyCodeEscape {
             if let onEscape, onEscape() { return nil }

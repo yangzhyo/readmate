@@ -19,8 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setupStatusItem()
         registerLaunchAtLoginOnce()
         promptForAccessibilityIfNeeded()
+        ClipboardWatcher.shared.start()
 
-        applyHotkey()
+        applyTriggerSettings()
         eventTap.onTrigger = { [weak self] in self?.trigger() }
         eventTap.onEscape = { [weak self] in
             guard let self, self.panel.isVisible else { return false }
@@ -36,6 +37,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func trigger() {
         guard enabled else { return }
+        performCaptureAndExplain()
+    }
+
+    @objc private func explainSelectionNow() {
+        performCaptureAndExplain()
+    }
+
+    private func performCaptureAndExplain() {
         let mouse = NSEvent.mouseLocation
         guard let capture = SelectionCapture.capture() else {
             panel.showTransientHint("未取到选中文字", near: mouse)
@@ -49,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func explainCurrent() {
         guard let capture = lastCapture else { return }
         explainTask?.cancel()
-        panel.begin()
+        panel.begin(selection: capture.selection)
 
         let apiKey = Settings.apiKey
         guard !apiKey.isEmpty else {
@@ -99,9 +108,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func applyHotkey() {
+    private func applyTriggerSettings() {
         let hotkey = Settings.hotkey
         eventTap.setHotkey(keyCode: hotkey.keyCode, nsModifierRawValue: hotkey.modifiers)
+        eventTap.doubleTapEnabled = Settings.doubleTapOption
     }
 
     private func promptForAccessibilityIfNeeded() {
@@ -145,10 +155,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let toggle = NSMenuItem(title: "启用（\(Settings.hotkey.display)）", action: #selector(toggleEnabled), keyEquivalent: "")
+        let triggerDescription = Settings.doubleTapOption
+            ? "双击 ⌥ 或 \(Settings.hotkey.display)"
+            : Settings.hotkey.display
+        let toggle = NSMenuItem(title: "启用（\(triggerDescription)）", action: #selector(toggleEnabled), keyEquivalent: "")
         toggle.target = self
         toggle.state = enabled ? .on : .off
         menu.addItem(toggle)
+
+        let explainNow = NSMenuItem(title: "解释当前选中", action: #selector(explainSelectionNow), keyEquivalent: "")
+        explainNow.target = self
+        menu.addItem(explainNow)
 
         if !AXIsProcessTrusted() {
             let warn = NSMenuItem(title: "⚠︎ 需要辅助功能权限", action: #selector(openAccessibilitySettings), keyEquivalent: "")
@@ -218,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.title = "Translator 设置"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(onDone: { [weak self] in
-                self?.applyHotkey()
+                self?.applyTriggerSettings()
                 self?.settingsWindow?.close()
             }))
             window.center()

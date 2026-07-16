@@ -58,11 +58,17 @@ enum SelectionCapture {
 
     // MARK: - 剪贴板兜底
 
+    /// ⌘C 兜不住时（见下），采用剪贴板既有内容的新鲜度窗口
+    private static let clipboardFreshness: TimeInterval = 15
+
     private static func captureViaClipboard() -> String? {
         let pasteboard = NSPasteboard.general
+        ClipboardWatcher.shared.pollNow()
+
         let saved: [[(NSPasteboard.PasteboardType, Data)]] = (pasteboard.pasteboardItems ?? []).map { item in
             item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }
         }
+        let savedString = pasteboard.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let changeCountBefore = pasteboard.changeCount
 
         postCmdC()
@@ -71,13 +77,21 @@ enum SelectionCapture {
             RunLoop.current.run(until: Date().addingTimeInterval(0.02))
         }
 
-        var selection: String?
         if pasteboard.changeCount != changeCountBefore {
-            selection = pasteboard.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let selection = pasteboard.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            restore(saved, to: pasteboard)
+            ClipboardWatcher.shared.ignoreCurrentChange()
+            return (selection?.isEmpty == false) ? selection : nil
         }
 
-        restore(saved, to: pasteboard)
-        return (selection?.isEmpty == false) ? selection : nil
+        // ⌘C 没产出新内容——有些应用（如 Claude Code 的 TUI）自己接管选择并在选中时即时复制，
+        // 终端里没有可拷的原生选区。此时若剪贴板内容是刚刚写入的（选中时的自动复制），直接采用。
+        if let savedString, !savedString.isEmpty,
+           let changed = ClipboardWatcher.shared.lastChangeDate,
+           Date().timeIntervalSince(changed) <= clipboardFreshness {
+            return savedString
+        }
+        return nil
     }
 
     private static func restore(_ saved: [[(NSPasteboard.PasteboardType, Data)]], to pasteboard: NSPasteboard) {

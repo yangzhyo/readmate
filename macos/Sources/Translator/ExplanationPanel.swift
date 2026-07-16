@@ -12,6 +12,8 @@ final class PanelModel: ObservableObject {
 
     @Published var text = ""
     @Published var state: State = .loading
+    /// 实际取到的选区，显示在卡片顶部——取词是启发式的，让用户能一眼核对取的是什么
+    @Published var selection = ""
 }
 
 /// 解释卡：不抢焦点的浮动面板。Esc 的关闭由 EventTap 兜住（见 AppDelegate 接线），
@@ -48,8 +50,9 @@ final class ExplanationPanel {
 
     // MARK: - 内容状态
 
-    func begin() {
+    func begin(selection: String) {
         hintToken += 1
+        model.selection = selection
         model.text = ""
         model.state = .loading
         resizeSoon()
@@ -75,6 +78,7 @@ final class ExplanationPanel {
     /// 取词失败等一句话提示，短暂显示后自动消失
     func showTransientHint(_ message: String, near anchor: NSPoint) {
         show(near: anchor)
+        model.selection = ""
         model.text = message
         model.state = .hint
         resizeSoon()
@@ -160,6 +164,13 @@ struct PanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if !model.selection.isEmpty {
+                Text(model.selection)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
             switch model.state {
             case .loading:
                 Text("…")

@@ -22,11 +22,23 @@ enum Settings {
     )
 
     private static let modelKey = "model"
+    private static let doubleTapOptionKey = "doubleTapOption"
     private static let hotkeyKeyCodeKey = "hotkeyKeyCode"
     private static let hotkeyModifiersKey = "hotkeyModifiers"
     private static let hotkeyDisplayKey = "hotkeyDisplay"
     private static let keychainService = "Translator"
     private static let keychainAccount = "gemini-api-key"
+
+    /// 连按两下 ⌥ 触发，默认开
+    static var doubleTapOption: Bool {
+        get {
+            let defaults = UserDefaults.standard
+            return defaults.object(forKey: doubleTapOptionKey) == nil
+                ? true
+                : defaults.bool(forKey: doubleTapOptionKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: doubleTapOptionKey) }
+    }
 
     static var hotkey: Hotkey {
         get {
