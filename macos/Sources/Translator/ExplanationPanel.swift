@@ -173,8 +173,12 @@ struct PanelView: View {
             }
             switch model.state {
             case .loading:
-                Text("…")
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("思考中…")
+                        .foregroundStyle(.secondary)
+                }
             case .hint:
                 Text(model.text)
                     .foregroundStyle(.secondary)

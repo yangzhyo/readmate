@@ -34,7 +34,7 @@ enum GeminiClient {
                         "contents": [
                             ["role": "user", "parts": [["text": Prompt.user(selection: selection, context: context)]]]
                         ],
-                        "generationConfig": ["maxOutputTokens": 2048],
+                        "generationConfig": ["maxOutputTokens": 4096],
                     ]
                     request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

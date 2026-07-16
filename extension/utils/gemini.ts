@@ -24,7 +24,7 @@ export async function* streamExplanation(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: buildUserPrompt(selection, context) }] }],
-      generationConfig: { maxOutputTokens: 2048 },
+      generationConfig: { maxOutputTokens: 4096 },
     }),
   });
 
