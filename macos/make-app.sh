@@ -11,6 +11,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp .build/release/Translator "$APP/Contents/MacOS/Translator"
 cp Info.plist "$APP/Contents/Info.plist"
+mkdir -p "$APP/Contents/Resources"
+cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # 重新生成：swift make-icon.swift + iconutil
 
 # 优先用本机的开发者证书：签名身份稳定，辅助功能授权可跨重建保留；
 # ad-hoc 签名每次构建都变，每次替换应用都会把 TCC 授权作废。
