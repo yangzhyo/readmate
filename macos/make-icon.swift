@@ -1,12 +1,35 @@
 #!/usr/bin/swift
-// 生成 1024×1024 的应用图标主图（PNG）。
-// 设计：Big Sur 模板（1024 画布、824 圆角方块居中）+ 品牌蓝渐变 + 白色「译」。
+// 生成 1024×1024 的应用图标主图（PNG）：品牌蓝渐变圆角方块 + 像素风熊猫。
+// 像素画用下面的字符网格定义，改网格即可换动物/表情。
 // 用法：swift make-icon.swift <输出路径.png>
 import AppKit
 
 let canvas: CGFloat = 1024
 let inset: CGFloat = 100
 let cornerRadius: CGFloat = 186
+
+// K=黑 W=白 P=腮红 .=透明
+let sprite = [
+    "..KK........KK..",
+    ".KKKK......KKKK.",
+    ".KKKKKKKKKKKKKK.",
+    ".KWWWWWWWWWWWWK.",
+    ".KWWWWWWWWWWWWK.",
+    ".KWKKKWWWWKKKWK.",
+    ".KWKWKWWWWKWKWK.",
+    ".KWKKKWWWWKKKWK.",
+    ".KWWWWWKKWWWWWK.",
+    ".KWPWWWWWWWWPWK.",
+    ".KWWWWWWWWWWWWK.",
+    "..KKWWWWWWWWKK..",
+    "....KKKKKKKK....",
+]
+
+let palette: [Character: NSColor] = [
+    "K": NSColor(calibratedRed: 0.10, green: 0.11, blue: 0.13, alpha: 1),
+    "W": .white,
+    "P": NSColor(calibratedRed: 1.00, green: 0.65, blue: 0.71, alpha: 1),
+]
 
 let rep = NSBitmapImageRep(
     bitmapDataPlanes: nil, pixelsWide: Int(canvas), pixelsHigh: Int(canvas),
@@ -26,19 +49,24 @@ NSGradient(colors: [
     NSColor(calibratedRed: 0.02, green: 0.32, blue: 0.71, alpha: 1),
 ])!.draw(in: shape, angle: -90)
 
-let font = NSFont(name: "PingFangSC-Semibold", size: 560)
-    ?? NSFont.systemFont(ofSize: 560, weight: .semibold)
-let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
-shadow.shadowBlurRadius = 26
-shadow.shadowOffset = NSSize(width: 0, height: -12)
-let glyph = NSAttributedString(string: "译", attributes: [
-    .font: font,
-    .foregroundColor: NSColor.white,
-    .shadow: shadow,
-])
-let size = glyph.size()
-glyph.draw(at: NSPoint(x: (canvas - size.width) / 2, y: (canvas - size.height) / 2))
+// 逐格画像素（整数对齐、无抗锯齿感）
+let cell: CGFloat = 44
+let cols = sprite[0].count
+let rows = sprite.count
+let originX = (canvas - CGFloat(cols) * cell) / 2
+let originY = (canvas - CGFloat(rows) * cell) / 2
+for (rowIndex, row) in sprite.enumerated() {
+    for (colIndex, ch) in row.enumerated() {
+        guard let color = palette[ch] else { continue }
+        color.setFill()
+        // 位图 y 轴向上，网格第 0 行在最上
+        NSRect(
+            x: originX + CGFloat(colIndex) * cell,
+            y: originY + CGFloat(rows - 1 - rowIndex) * cell,
+            width: cell, height: cell
+        ).fill()
+    }
+}
 
 NSGraphicsContext.current?.flushGraphics()
 NSGraphicsContext.restoreGraphicsState()
