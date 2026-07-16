@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Security
 
@@ -5,9 +6,45 @@ import Security
 enum Settings {
     static let defaultModel = "gemini-3.5-flash"
 
+    struct Hotkey: Equatable {
+        /// 硬件键码（与修饰键无关）
+        var keyCode: Int
+        /// NSEvent.ModifierFlags 的 rawValue（仅设备无关的 ⌘⌃⌥⇧ 部分）
+        var modifiers: UInt
+        /// 录制时生成的展示文本，如 "⌥T"
+        var display: String
+    }
+
+    static let defaultHotkey = Hotkey(
+        keyCode: 17, // T
+        modifiers: NSEvent.ModifierFlags.option.rawValue,
+        display: "⌥T"
+    )
+
     private static let modelKey = "model"
+    private static let hotkeyKeyCodeKey = "hotkeyKeyCode"
+    private static let hotkeyModifiersKey = "hotkeyModifiers"
+    private static let hotkeyDisplayKey = "hotkeyDisplay"
     private static let keychainService = "Translator"
     private static let keychainAccount = "gemini-api-key"
+
+    static var hotkey: Hotkey {
+        get {
+            let defaults = UserDefaults.standard
+            guard defaults.object(forKey: hotkeyKeyCodeKey) != nil else { return defaultHotkey }
+            return Hotkey(
+                keyCode: defaults.integer(forKey: hotkeyKeyCodeKey),
+                modifiers: UInt(defaults.integer(forKey: hotkeyModifiersKey)),
+                display: defaults.string(forKey: hotkeyDisplayKey) ?? "?"
+            )
+        }
+        set {
+            let defaults = UserDefaults.standard
+            defaults.set(newValue.keyCode, forKey: hotkeyKeyCodeKey)
+            defaults.set(Int(newValue.modifiers), forKey: hotkeyModifiersKey)
+            defaults.set(newValue.display, forKey: hotkeyDisplayKey)
+        }
+    }
 
     static var model: String {
         get {

@@ -7,6 +7,6 @@
 | 载体 | 覆盖场景 | 触发 |
 |------|----------|------|
 | [`extension/`](./extension/) — Chrome 插件 | 网页阅读 | 划词图标或 `⌥T` |
-| [`macos/`](./macos/) — macOS 常驻工具 | 终端（Claude Code 等）与桌面应用 | 全局 `⌥T`（Chrome 前台时自动让位给插件） |
+| [`macos/`](./macos/) — macOS 常驻工具 | 终端（Claude Code 等）与桌面应用 | 全局快捷键（默认 `⌥T`，可在设置中改；Chrome 前台时自动让位给插件） |
 
 构建与安装说明见各载体目录内的 README。两个载体各自保存一份 Gemini API key（插件存 `chrome.storage.local`，macOS 端存钥匙串），互不同步。

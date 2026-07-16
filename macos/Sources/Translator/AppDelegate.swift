@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         registerLaunchAtLoginOnce()
         promptForAccessibilityIfNeeded()
 
+        applyHotkey()
         eventTap.onTrigger = { [weak self] in self?.trigger() }
         eventTap.onEscape = { [weak self] in
             guard let self, self.panel.isVisible else { return false }
@@ -98,6 +99,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private func applyHotkey() {
+        let hotkey = Settings.hotkey
+        eventTap.setHotkey(keyCode: hotkey.keyCode, nsModifierRawValue: hotkey.modifiers)
+    }
+
     private func promptForAccessibilityIfNeeded() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
@@ -139,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let toggle = NSMenuItem(title: "启用（⌥T）", action: #selector(toggleEnabled), keyEquivalent: "")
+        let toggle = NSMenuItem(title: "启用（\(Settings.hotkey.display)）", action: #selector(toggleEnabled), keyEquivalent: "")
         toggle.target = self
         toggle.state = enabled ? .on : .off
         menu.addItem(toggle)
@@ -212,6 +218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.title = "Translator 设置"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(onDone: { [weak self] in
+                self?.applyHotkey()
                 self?.settingsWindow?.close()
             }))
             window.center()

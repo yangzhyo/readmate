@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var apiKey = Settings.apiKey
     @State private var model = Settings.model
+    @State private var hotkey = Settings.hotkey
     var onDone: () -> Void
 
     var body: some View {
@@ -18,11 +19,14 @@ struct SettingsView: View {
             TextField("模型（默认 \(Settings.defaultModel)）", text: $model)
                 .textFieldStyle(.roundedBorder)
 
+            HotkeyRecorder(hotkey: $hotkey)
+
             HStack {
                 Spacer()
                 Button("保存") {
                     Settings.apiKey = apiKey
                     Settings.model = model
+                    Settings.hotkey = hotkey
                     onDone()
                 }
                 .keyboardShortcut(.defaultAction)

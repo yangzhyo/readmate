@@ -13,8 +13,9 @@ open /Applications/Translator.app
 首次运行会引导授予**辅助功能**权限（系统设置 → 隐私与安全性 → 辅助功能）——取词和全局快捷键都依赖它。授权后无需重启应用，工具会自动重试。之后点菜单栏「译」→「设置…」填入 [Google AI Studio](https://aistudio.google.com/apikey) 的 Gemini API key。
 
 - API key 存本机钥匙串；模型默认 `gemini-3.5-flash`，可在设置里改
+- 触发快捷键默认 `⌥T`，可在设置里录制新组合（至少含 ⌘⌃⌥ 之一）——终端把 Option 当 Meta 键用时建议换掉
 - 默认注册开机自启，可在菜单栏关闭
-- 停用/启用快捷键：菜单栏「译」→「启用（⌥T）」
+- 停用/启用快捷键：菜单栏「译」→「启用」
 
 ## 行为说明
 

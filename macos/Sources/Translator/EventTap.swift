@@ -10,15 +10,29 @@ final class EventTap {
 
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var hotkeyKeyCode: Int64 = 17
+    private var hotkeyFlags: CGEventFlags = .maskAlternate
 
-    private static let keyCodeT: Int64 = 17
     private static let keyCodeEscape: Int64 = 53
+    private static let relevantFlags: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
     private static let chromeBundleIDs: Set<String> = [
         "com.google.Chrome",
         "com.google.Chrome.beta",
         "com.google.Chrome.canary",
         "com.google.Chrome.dev",
     ]
+
+    /// 应用用户自定义的触发快捷键（主线程调用；回调也跑在主 RunLoop，无并发问题）
+    func setHotkey(keyCode: Int, nsModifierRawValue: UInt) {
+        hotkeyKeyCode = Int64(keyCode)
+        let ns = NSEvent.ModifierFlags(rawValue: nsModifierRawValue)
+        var flags: CGEventFlags = []
+        if ns.contains(.command) { flags.insert(.maskCommand) }
+        if ns.contains(.control) { flags.insert(.maskControl) }
+        if ns.contains(.option) { flags.insert(.maskAlternate) }
+        if ns.contains(.shift) { flags.insert(.maskShift) }
+        hotkeyFlags = flags
+    }
 
     /// 需要辅助功能权限；未授权时创建失败，返回 false
     func start() -> Bool {
@@ -57,19 +71,15 @@ final class EventTap {
             return Unmanaged.passUnretained(event)
         }
 
-        if keyCode == Self.keyCodeT {
-            let flags = event.flags
-            let optionOnly = flags.contains(.maskAlternate)
-                && flags.intersection([.maskCommand, .maskControl, .maskShift]).isEmpty
-            if optionOnly {
-                if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-                   Self.chromeBundleIDs.contains(frontmost) {
-                    return Unmanaged.passUnretained(event)
-                }
-                // 回调里不做重活（取词可能阻塞数百毫秒），异步派发
-                DispatchQueue.main.async { [weak self] in self?.onTrigger?() }
-                return nil
+        if keyCode == hotkeyKeyCode,
+           event.flags.intersection(Self.relevantFlags) == hotkeyFlags {
+            if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+               Self.chromeBundleIDs.contains(frontmost) {
+                return Unmanaged.passUnretained(event)
             }
+            // 回调里不做重活（取词可能阻塞数百毫秒），异步派发
+            DispatchQueue.main.async { [weak self] in self?.onTrigger?() }
+            return nil
         }
 
         return Unmanaged.passUnretained(event)
