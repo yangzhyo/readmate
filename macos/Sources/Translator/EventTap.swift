@@ -1,24 +1,27 @@
 import AppKit
 
-/// 全局键盘事件监听：⌥T 触发解释；解释卡可见时吞掉 Esc 用于关卡
-/// （避免 Esc 漏到底下的应用——在 Claude Code 里那是打断 Agent 的键）。
-/// Chrome 前台时放行 ⌥T，让位给浏览器插件。
+/// 全局事件监听：
+/// - 选取手势（拖选 / 双击选词）结束时上报，用于浮现划词图标
+/// - 解释卡可见时吞掉 Esc 用于关卡（避免 Esc 漏给底下的应用——在 Claude Code 里那是打断 Agent 的键）
+/// - 任意按键 / 鼠标按下时上报，用于收起划词图标
 final class EventTap {
-    var onTrigger: (() -> Void)?
+    /// 选取手势结束，参数为 AppKit（左下原点）坐标。Chrome 前台时不上报——浏览器内由插件的划词图标负责
+    var onSelectionGesture: ((NSPoint) -> Void)?
     /// 返回 true 表示 Esc 已被消费（解释卡正显示并被关闭）
     var onEscape: (() -> Bool)?
+    /// 任意实体按键按下（用于收起图标）
+    var onKeyDown: (() -> Void)?
+    /// 鼠标左键按下，参数为 AppKit 坐标（用于收起不在点击处的图标）
+    var onMouseDown: ((NSPoint) -> Void)?
+    /// 返回 true 表示该点落在自家窗口（解释卡/图标/设置窗）上，手势应忽略
+    var shouldIgnorePoint: ((NSPoint) -> Bool)?
 
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var hotkeyKeyCode: Int64 = 17
-    private var hotkeyFlags: CGEventFlags = .maskAlternate
-    private var doubleTapFlag: CGEventFlags? = .maskAlternate
-    private var previousRelevantFlags: CGEventFlags = []
-    private var lastLoneModifierDownTime: TimeInterval = 0
+    private var mouseDownLocation: CGPoint?
 
     private static let keyCodeEscape: Int64 = 53
-    private static let relevantFlags: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
-    private static let doubleTapWindow: TimeInterval = 0.4
+    private static let dragThreshold: CGFloat = 12
     private static let chromeBundleIDs: Set<String> = [
         "com.google.Chrome",
         "com.google.Chrome.beta",
@@ -26,32 +29,13 @@ final class EventTap {
         "com.google.Chrome.dev",
     ]
 
-    /// 应用用户自定义的触发快捷键（主线程调用；回调也跑在主 RunLoop，无并发问题）
-    func setHotkey(keyCode: Int, nsModifierRawValue: UInt) {
-        hotkeyKeyCode = Int64(keyCode)
-        let ns = NSEvent.ModifierFlags(rawValue: nsModifierRawValue)
-        var flags: CGEventFlags = []
-        if ns.contains(.command) { flags.insert(.maskCommand) }
-        if ns.contains(.control) { flags.insert(.maskControl) }
-        if ns.contains(.option) { flags.insert(.maskAlternate) }
-        if ns.contains(.shift) { flags.insert(.maskShift) }
-        hotkeyFlags = flags
-    }
-
-    /// 设置连按两下触发所用的修饰键；传 0 表示关闭
-    func setDoubleTap(nsModifierRawValue: UInt) {
-        let ns = NSEvent.ModifierFlags(rawValue: nsModifierRawValue)
-        if ns.contains(.command) { doubleTapFlag = .maskCommand }
-        else if ns.contains(.control) { doubleTapFlag = .maskControl }
-        else if ns.contains(.option) { doubleTapFlag = .maskAlternate }
-        else if ns.contains(.shift) { doubleTapFlag = .maskShift }
-        else { doubleTapFlag = nil }
-    }
-
     /// 需要辅助功能权限；未授权时创建失败，返回 false
     func start() -> Bool {
         guard tap == nil else { return true }
-        let mask = CGEventMask((1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue))
+        let mask: CGEventMask =
+            (1 << CGEventType.keyDown.rawValue)
+                | (1 << CGEventType.leftMouseDown.rawValue)
+                | (1 << CGEventType.leftMouseUp.rawValue)
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             let eventTap = Unmanaged<EventTap>.fromOpaque(refcon!).takeUnretainedValue()
             return eventTap.handle(type: type, event: event)
@@ -73,49 +57,56 @@ final class EventTap {
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
-            return Unmanaged.passUnretained(event)
-        }
 
-        // 双击修饰键：两次「单独按下该键」间隔在窗口内，且中间没有敲过别的键。
-        // 裸修饰键的点按对底下的应用是无操作，无需吞事件，也不与终端的 Meta 用法冲突。
-        if type == .flagsChanged {
-            let mods = event.flags.intersection(Self.relevantFlags)
-            defer { previousRelevantFlags = mods }
-            if let doubleTapFlag, mods == doubleTapFlag, previousRelevantFlags.isEmpty {
-                let now = ProcessInfo.processInfo.systemUptime
-                if now - lastLoneModifierDownTime <= Self.doubleTapWindow {
-                    lastLoneModifierDownTime = 0
-                    DispatchQueue.main.async { [weak self] in self?.onTrigger?() }
-                } else {
-                    lastLoneModifierDownTime = now
-                }
-            } else if !mods.isEmpty, mods != doubleTapFlag {
-                lastLoneModifierDownTime = 0
+        case .leftMouseDown:
+            mouseDownLocation = event.location
+            let point = Self.appKitPoint(event.location)
+            DispatchQueue.main.async { [weak self] in self?.onMouseDown?(point) }
+
+        case .leftMouseUp:
+            handleMouseUp(event)
+
+        case .keyDown:
+            DispatchQueue.main.async { [weak self] in self?.onKeyDown?() }
+            if event.getIntegerValueField(.keyboardEventKeycode) == Self.keyCodeEscape,
+               let onEscape, onEscape() {
+                return nil
             }
-            return Unmanaged.passUnretained(event)
+
+        default:
+            break
         }
-
-        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        lastLoneModifierDownTime = 0 // 敲了实键就不算连按修饰键
-
-        if keyCode == Self.keyCodeEscape {
-            if let onEscape, onEscape() { return nil }
-            return Unmanaged.passUnretained(event)
-        }
-
-        if keyCode == hotkeyKeyCode,
-           event.flags.intersection(Self.relevantFlags) == hotkeyFlags {
-            if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-               Self.chromeBundleIDs.contains(frontmost) {
-                return Unmanaged.passUnretained(event)
-            }
-            // 回调里不做重活（取词可能阻塞数百毫秒），异步派发
-            DispatchQueue.main.async { [weak self] in self?.onTrigger?() }
-            return nil
-        }
-
         return Unmanaged.passUnretained(event)
+    }
+
+    private func handleMouseUp(_ event: CGEvent) {
+        let upLocation = event.location
+        let downLocation = mouseDownLocation
+        mouseDownLocation = nil
+
+        // 拖选（按下→移动超过阈值→抬起）或双击/三击选词才算选取手势
+        let clickCount = event.getIntegerValueField(.mouseEventClickState)
+        let dragged = downLocation.map {
+            hypot(upLocation.x - $0.x, upLocation.y - $0.y) >= Self.dragThreshold
+        } ?? false
+        guard dragged || clickCount >= 2 else { return }
+
+        if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+           Self.chromeBundleIDs.contains(frontmost) {
+            return
+        }
+
+        let point = Self.appKitPoint(upLocation)
+        if shouldIgnorePoint?(point) == true { return }
+        DispatchQueue.main.async { [weak self] in self?.onSelectionGesture?(point) }
+    }
+
+    /// CGEvent 坐标原点在主屏左上，AppKit 在主屏左下
+    private static func appKitPoint(_ location: CGPoint) -> NSPoint {
+        let primaryHeight = NSScreen.screens.first?.frame.maxY ?? 0
+        return NSPoint(x: location.x, y: primaryHeight - location.y)
     }
 }

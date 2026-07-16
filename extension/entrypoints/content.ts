@@ -1,5 +1,4 @@
 import { extractContext } from '../utils/extract-context';
-import { loadSettings } from '../utils/settings';
 import {
   EXPLAIN_PORT,
   type ExplainRequest,
@@ -10,20 +9,6 @@ import {
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
-    browser.runtime.onMessage.addListener((message) => {
-      if ((message as RuntimeMessage)?.type === 'trigger') onTrigger();
-    });
-
-    void loadSettings().then((settings) => {
-      iconEnabled = settings.showIcon;
-    });
-    browser.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && 'showIcon' in changes) {
-        iconEnabled = changes.showIcon.newValue !== false;
-        if (!iconEnabled) icon?.hide();
-      }
-    });
-
     document.addEventListener('mouseup', onMouseUp);
     document.addEventListener('selectionchange', () => {
       const selection = window.getSelection();
@@ -37,7 +22,6 @@ const CARD_ESTIMATED_HEIGHT = 220;
 
 let card: Card | null = null;
 let icon: TriggerIcon | null = null;
-let iconEnabled = true;
 
 function onTrigger(): void {
   icon?.hide();
@@ -59,7 +43,6 @@ function onTrigger(): void {
 }
 
 function onMouseUp(event: MouseEvent): void {
-  if (!iconEnabled) return;
   const path = event.composedPath();
   if (icon && path.includes(icon.host)) return;
   if (card && path.includes(card.host)) return;
@@ -93,7 +76,7 @@ class TriggerIcon {
   constructor(onActivate: () => void) {
     this.host = document.createElement('div');
     const shadow = this.host.attachShadow({ mode: 'open' });
-    shadow.innerHTML = `<style>${ICON_CSS}</style><button class="icon" title="解释选中内容（Alt+T）">译</button>`;
+    shadow.innerHTML = `<style>${ICON_CSS}</style><button class="icon" title="解释选中内容">译</button>`;
     const button = shadow.querySelector('button')!;
     // 阻止 mousedown 默认行为，避免点击图标时选区被清除
     button.addEventListener('mousedown', (event) => event.preventDefault());

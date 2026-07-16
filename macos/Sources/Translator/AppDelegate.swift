@@ -5,6 +5,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let eventTap = EventTap()
     private let panel = ExplanationPanel()
+    private let triggerIcon = TriggerIcon()
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var explainTask: Task<Void, Never>?
@@ -21,30 +22,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         promptForAccessibilityIfNeeded()
         ClipboardWatcher.shared.start()
 
-        applyTriggerSettings()
-        eventTap.onTrigger = { [weak self] in self?.trigger() }
+        eventTap.onSelectionGesture = { [weak self] point in
+            guard let self, self.enabled else { return }
+            self.triggerIcon.show(at: point)
+        }
+        eventTap.onMouseDown = { [weak self] point in
+            guard let self else { return }
+            if !self.triggerIcon.frameContains(point) { self.triggerIcon.hide() }
+        }
+        eventTap.onKeyDown = { [weak self] in self?.triggerIcon.hide() }
         eventTap.onEscape = { [weak self] in
             guard let self, self.panel.isVisible else { return false }
             self.cancelAndClose()
             return true
         }
+        eventTap.shouldIgnorePoint = { [weak self] point in
+            self?.ownWindowsContain(point) ?? false
+        }
+        triggerIcon.onClick = { [weak self] in self?.performCaptureAndExplain() }
         panel.onRetry = { [weak self] in self?.explainCurrent() }
 
         startTapOrRetry()
     }
 
-    // MARK: - 触发链路
-
-    private func trigger() {
-        guard enabled else { return }
-        performCaptureAndExplain()
+    private func ownWindowsContain(_ point: NSPoint) -> Bool {
+        NSApp.windows.contains { $0.isVisible && NSPointInRect(point, $0.frame) }
     }
+
+    // MARK: - 触发链路
 
     @objc private func explainSelectionNow() {
         performCaptureAndExplain()
     }
 
     private func performCaptureAndExplain() {
+        triggerIcon.hide()
         let mouse = NSEvent.mouseLocation
         guard let capture = SelectionCapture.capture() else {
             panel.showTransientHint("未取到选中文字", near: mouse)
@@ -108,21 +120,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func applyTriggerSettings() {
-        let hotkey = Settings.hotkey
-        eventTap.setHotkey(keyCode: hotkey.keyCode, nsModifierRawValue: hotkey.modifiers)
-        eventTap.setDoubleTap(nsModifierRawValue: Settings.doubleTapModifier)
-    }
-
-    static func doubleTapSymbol(for rawValue: UInt) -> String? {
-        let ns = NSEvent.ModifierFlags(rawValue: rawValue)
-        if ns.contains(.command) { return "⌘" }
-        if ns.contains(.control) { return "⌃" }
-        if ns.contains(.option) { return "⌥" }
-        if ns.contains(.shift) { return "⇧" }
-        return nil
-    }
-
     private func promptForAccessibilityIfNeeded() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
@@ -164,9 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let triggerDescription = Self.doubleTapSymbol(for: Settings.doubleTapModifier)
-            .map { "双击 \($0) 或 \(Settings.hotkey.display)" } ?? Settings.hotkey.display
-        let toggle = NSMenuItem(title: "启用（\(triggerDescription)）", action: #selector(toggleEnabled), keyEquivalent: "")
+        let toggle = NSMenuItem(title: "启用划词图标", action: #selector(toggleEnabled), keyEquivalent: "")
         toggle.target = self
         toggle.state = enabled ? .on : .off
         menu.addItem(toggle)
@@ -200,7 +195,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleEnabled() {
         enabled.toggle()
-        if !enabled { cancelAndClose() }
+        if !enabled {
+            triggerIcon.hide()
+            cancelAndClose()
+        }
     }
 
     @objc private func openAccessibilitySettings() {
@@ -243,7 +241,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.title = "Translator 设置"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(onDone: { [weak self] in
-                self?.applyTriggerSettings()
                 self?.settingsWindow?.close()
             }))
             window.center()

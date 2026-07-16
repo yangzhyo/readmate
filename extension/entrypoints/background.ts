@@ -9,17 +9,6 @@ import {
 } from '../utils/messages';
 
 export default defineBackground(() => {
-  browser.commands.onCommand.addListener(async (command) => {
-    if (command !== 'explain-selection') return;
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id == null) return;
-    try {
-      await browser.tabs.sendMessage(tab.id, { type: 'trigger' } satisfies RuntimeMessage);
-    } catch {
-      // chrome:// 等无法注入 content script 的页面，忽略
-    }
-  });
-
   browser.action.onClicked.addListener(() => {
     void browser.runtime.openOptionsPage();
   });

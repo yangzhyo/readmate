@@ -12,6 +12,6 @@ export type PortResponse =
   | { type: 'error'; code: 'missing-key' | 'request-failed'; message: string };
 
 /** 一次性 runtime 消息 */
-export type RuntimeMessage = { type: 'trigger' } | { type: 'open-options' };
+export type RuntimeMessage = { type: 'open-options' };
 
 export const EXPLAIN_PORT = 'explain';

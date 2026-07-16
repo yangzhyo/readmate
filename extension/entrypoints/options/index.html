@@ -49,7 +49,7 @@
   <body>
     <main>
       <h1>Translator 设置</h1>
-      <p class="subtitle">选中英文，按 <code>Alt+T</code>（macOS 为 <code>⌥T</code>）获得语境化中文解释</p>
+      <p class="subtitle">选中英文，点击浮现的「译」图标获得语境化中文解释</p>
 
       <label for="apiKey">Gemini API key</label>
       <input id="apiKey" type="password" placeholder="AIza…" autocomplete="off" />
@@ -65,14 +65,7 @@
       </datalist>
       <p class="hint">默认 gemini-3.5-flash；想更快更省可切 flash-lite 系列。</p>
 
-      <label class="toggle"><input id="showIcon" type="checkbox" checked /> 选中文字后显示划词图标</label>
-      <p class="hint">关闭后仅可通过快捷键触发。</p>
-
       <button id="save">保存</button><span id="status"></span>
-
-      <p class="hint" style="margin-top: 32px">
-        修改快捷键：在地址栏打开 <code>chrome://extensions/shortcuts</code>
-      </p>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>
