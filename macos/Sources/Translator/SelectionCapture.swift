@@ -11,6 +11,14 @@ struct Capture {
 
 /// 取词：AX 优先，模拟 ⌘C 兜底（读后恢复原剪贴板，恢复写入带 Transient 标记）。
 enum SelectionCapture {
+    /// 对假死应用的 AX 询问最多等 0.3 秒——默认 6 秒会拖住主线程上的事件监听，
+    /// 造成全局按键卡顿；问不到就走 ⌘C 兜底，不值得多等。
+    private static let systemWide: AXUIElement = {
+        let element = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(element, 0.3)
+        return element
+    }()
+
     static func capture() -> Capture? {
         if let viaAX = captureViaAX() { return viaAX }
         if let selection = captureViaClipboard() {
@@ -22,7 +30,6 @@ enum SelectionCapture {
     // MARK: - AX 路径
 
     private static func captureViaAX() -> Capture? {
-        let systemWide = AXUIElementCreateSystemWide()
         var focusedRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
               let focusedRef else { return nil }
