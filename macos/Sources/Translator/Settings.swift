@@ -22,22 +22,24 @@ enum Settings {
     )
 
     private static let modelKey = "model"
-    private static let doubleTapOptionKey = "doubleTapOption"
+    private static let doubleTapModifierKey = "doubleTapModifier"
     private static let hotkeyKeyCodeKey = "hotkeyKeyCode"
     private static let hotkeyModifiersKey = "hotkeyModifiers"
     private static let hotkeyDisplayKey = "hotkeyDisplay"
     private static let keychainService = "Translator"
     private static let keychainAccount = "gemini-api-key"
 
-    /// 连按两下 ⌥ 触发，默认开
-    static var doubleTapOption: Bool {
+    /// 连按两下触发所用的修饰键（NSEvent.ModifierFlags 的 rawValue）；0 = 关闭。
+    /// 双击哪个键取决于本机哪个没被别的工具占用，故做成可选；默认 ⌥。
+    static var doubleTapModifier: UInt {
         get {
             let defaults = UserDefaults.standard
-            return defaults.object(forKey: doubleTapOptionKey) == nil
-                ? true
-                : defaults.bool(forKey: doubleTapOptionKey)
+            guard defaults.object(forKey: doubleTapModifierKey) != nil else {
+                return NSEvent.ModifierFlags.option.rawValue
+            }
+            return UInt(defaults.integer(forKey: doubleTapModifierKey))
         }
-        set { UserDefaults.standard.set(newValue, forKey: doubleTapOptionKey) }
+        set { UserDefaults.standard.set(Int(newValue), forKey: doubleTapModifierKey) }
     }
 
     static var hotkey: Hotkey {

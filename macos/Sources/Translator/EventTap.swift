@@ -8,15 +8,13 @@ final class EventTap {
     /// 返回 true 表示 Esc 已被消费（解释卡正显示并被关闭）
     var onEscape: (() -> Bool)?
 
-    /// 连按两下 ⌥ 触发（默认开，可在设置里关）
-    var doubleTapEnabled = true
-
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var hotkeyKeyCode: Int64 = 17
     private var hotkeyFlags: CGEventFlags = .maskAlternate
+    private var doubleTapFlag: CGEventFlags? = .maskAlternate
     private var previousRelevantFlags: CGEventFlags = []
-    private var lastLoneOptionDownTime: TimeInterval = 0
+    private var lastLoneModifierDownTime: TimeInterval = 0
 
     private static let keyCodeEscape: Int64 = 53
     private static let relevantFlags: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
@@ -38,6 +36,16 @@ final class EventTap {
         if ns.contains(.option) { flags.insert(.maskAlternate) }
         if ns.contains(.shift) { flags.insert(.maskShift) }
         hotkeyFlags = flags
+    }
+
+    /// 设置连按两下触发所用的修饰键；传 0 表示关闭
+    func setDoubleTap(nsModifierRawValue: UInt) {
+        let ns = NSEvent.ModifierFlags(rawValue: nsModifierRawValue)
+        if ns.contains(.command) { doubleTapFlag = .maskCommand }
+        else if ns.contains(.control) { doubleTapFlag = .maskControl }
+        else if ns.contains(.option) { doubleTapFlag = .maskAlternate }
+        else if ns.contains(.shift) { doubleTapFlag = .maskShift }
+        else { doubleTapFlag = nil }
     }
 
     /// 需要辅助功能权限；未授权时创建失败，返回 false
@@ -70,27 +78,27 @@ final class EventTap {
             return Unmanaged.passUnretained(event)
         }
 
-        // 双击 ⌥：两次「单独按下 Option」间隔在窗口内，且中间没有敲过别的键。
+        // 双击修饰键：两次「单独按下该键」间隔在窗口内，且中间没有敲过别的键。
         // 裸修饰键的点按对底下的应用是无操作，无需吞事件，也不与终端的 Meta 用法冲突。
         if type == .flagsChanged {
             let mods = event.flags.intersection(Self.relevantFlags)
             defer { previousRelevantFlags = mods }
-            if doubleTapEnabled, mods == .maskAlternate, previousRelevantFlags.isEmpty {
+            if let doubleTapFlag, mods == doubleTapFlag, previousRelevantFlags.isEmpty {
                 let now = ProcessInfo.processInfo.systemUptime
-                if now - lastLoneOptionDownTime <= Self.doubleTapWindow {
-                    lastLoneOptionDownTime = 0
+                if now - lastLoneModifierDownTime <= Self.doubleTapWindow {
+                    lastLoneModifierDownTime = 0
                     DispatchQueue.main.async { [weak self] in self?.onTrigger?() }
                 } else {
-                    lastLoneOptionDownTime = now
+                    lastLoneModifierDownTime = now
                 }
-            } else if !mods.isEmpty, mods != .maskAlternate {
-                lastLoneOptionDownTime = 0
+            } else if !mods.isEmpty, mods != doubleTapFlag {
+                lastLoneModifierDownTime = 0
             }
             return Unmanaged.passUnretained(event)
         }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        lastLoneOptionDownTime = 0 // 敲了实键就不算连按 ⌥
+        lastLoneModifierDownTime = 0 // 敲了实键就不算连按修饰键
 
         if keyCode == Self.keyCodeEscape {
             if let onEscape, onEscape() { return nil }

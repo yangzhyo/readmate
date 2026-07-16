@@ -111,7 +111,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func applyTriggerSettings() {
         let hotkey = Settings.hotkey
         eventTap.setHotkey(keyCode: hotkey.keyCode, nsModifierRawValue: hotkey.modifiers)
-        eventTap.doubleTapEnabled = Settings.doubleTapOption
+        eventTap.setDoubleTap(nsModifierRawValue: Settings.doubleTapModifier)
+    }
+
+    static func doubleTapSymbol(for rawValue: UInt) -> String? {
+        let ns = NSEvent.ModifierFlags(rawValue: rawValue)
+        if ns.contains(.command) { return "⌘" }
+        if ns.contains(.control) { return "⌃" }
+        if ns.contains(.option) { return "⌥" }
+        if ns.contains(.shift) { return "⇧" }
+        return nil
     }
 
     private func promptForAccessibilityIfNeeded() {
@@ -155,9 +164,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let triggerDescription = Settings.doubleTapOption
-            ? "双击 ⌥ 或 \(Settings.hotkey.display)"
-            : Settings.hotkey.display
+        let triggerDescription = Self.doubleTapSymbol(for: Settings.doubleTapModifier)
+            .map { "双击 \($0) 或 \(Settings.hotkey.display)" } ?? Settings.hotkey.display
         let toggle = NSMenuItem(title: "启用（\(triggerDescription)）", action: #selector(toggleEnabled), keyEquivalent: "")
         toggle.target = self
         toggle.state = enabled ? .on : .off
