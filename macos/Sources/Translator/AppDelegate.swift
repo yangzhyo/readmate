@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let didAttemptAutoLaunchKey = "didAttemptAutoLaunchRegistration"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setupMainMenu()
         setupStatusItem()
         registerLaunchAtLoginOnce()
         promptForAccessibilityIfNeeded()
@@ -100,6 +101,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func promptForAccessibilityIfNeeded() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
+    }
+
+    // MARK: - 主菜单
+
+    /// LSUIElement 应用不显示菜单栏，但 ⌘V/⌘C 等快捷键依赖主菜单的键位等价项分发——
+    /// 不挂这个菜单，设置窗口的输入框就无法粘贴。
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+
+        let editMenu = NSMenu(title: "编辑")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "拷贝", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        NSApp.mainMenu = mainMenu
     }
 
     // MARK: - 菜单栏
