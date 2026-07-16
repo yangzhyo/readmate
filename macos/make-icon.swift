@@ -1,10 +1,14 @@
 #!/usr/bin/swift
-// 生成 1024×1024 的应用图标主图（PNG）：品牌蓝渐变圆角方块 + 像素风熊猫。
-// 像素画用下面的字符网格定义，改网格即可换动物/表情。
-// 用法：swift make-icon.swift <输出路径.png>
+// 生成应用图标（PNG）：像素风鹦鹉。像素画用下面的字符网格定义，改网格即可换动物/表情。
+// 用法：
+//   swift make-icon.swift <输出.png>          → 1024 的 macOS 图标（白底圆角方块）
+//   swift make-icon.swift <输出.png> <边长>   → 透明底、仅精灵（Chrome 插件图标用）
 import AppKit
 
-let canvas: CGFloat = 1024
+let spriteOnlySize: CGFloat? = CommandLine.arguments.count > 2
+    ? Double(CommandLine.arguments[2]).map { CGFloat($0) }
+    : nil
+let canvas: CGFloat = spriteOnlySize ?? 1024
 let inset: CGFloat = 100
 let cornerRadius: CGFloat = 186
 
@@ -48,18 +52,20 @@ let rep = NSBitmapImageRep(
 NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
-let shape = NSBezierPath(
-    roundedRect: NSRect(x: inset, y: inset, width: canvas - inset * 2, height: canvas - inset * 2),
-    xRadius: cornerRadius, yRadius: cornerRadius
-)
-// 白底（微渐变到浅灰，避免死白）
-NSGradient(colors: [
-    NSColor(calibratedRed: 1.00, green: 1.00, blue: 1.00, alpha: 1),
-    NSColor(calibratedRed: 0.92, green: 0.93, blue: 0.95, alpha: 1),
-])!.draw(in: shape, angle: -90)
+if spriteOnlySize == nil {
+    let shape = NSBezierPath(
+        roundedRect: NSRect(x: inset, y: inset, width: canvas - inset * 2, height: canvas - inset * 2),
+        xRadius: cornerRadius, yRadius: cornerRadius
+    )
+    // 白底（微渐变到浅灰，避免死白）
+    NSGradient(colors: [
+        NSColor(calibratedRed: 1.00, green: 1.00, blue: 1.00, alpha: 1),
+        NSColor(calibratedRed: 0.92, green: 0.93, blue: 0.95, alpha: 1),
+    ])!.draw(in: shape, angle: -90)
+}
 
-// 逐格画像素（整数对齐、无抗锯齿感）
-let cell: CGFloat = 40
+// 逐格画像素
+let cell: CGFloat = spriteOnlySize.map { $0 / CGFloat(sprite[0].count) } ?? 40
 let cols = sprite[0].count
 let rows = sprite.count
 let originX = (canvas - CGFloat(cols) * cell) / 2
