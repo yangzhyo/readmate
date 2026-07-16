@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Translator 设置</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+      }
+      main { width: min(560px, calc(100vw - 48px)); padding: 32px 0 48px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      .subtitle { color: gray; margin: 0 0 24px; }
+      label { display: block; font-weight: 600; margin: 18px 0 6px; }
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 8px 10px;
+        font: inherit;
+        border: 1px solid #8886;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+      }
+      .hint { color: gray; font-size: 13px; margin-top: 6px; }
+      .toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 18px 0 0; }
+      .toggle input { width: auto; }
+      .hint code { font-size: 12px; }
+      button {
+        margin-top: 24px;
+        padding: 8px 20px;
+        font: inherit;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        background: #0969da;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover { background: #0a5cc0; }
+      #status { margin-left: 12px; color: #1a7f37; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Translator 设置</h1>
+      <p class="subtitle">选中英文，按 <code>Alt+T</code>（macOS 为 <code>⌥T</code>）获得语境化中文解释</p>
+
+      <label for="apiKey">Gemini API key</label>
+      <input id="apiKey" type="password" placeholder="AIza…" autocomplete="off" />
+      <p class="hint">在 Google AI Studio 创建；仅保存在本机浏览器（chrome.storage.local），不会同步或上传。</p>
+
+      <label for="model">模型</label>
+      <input id="model" type="text" list="models" placeholder="gemini-3.5-flash" />
+      <datalist id="models">
+        <option value="gemini-3.5-flash"></option>
+        <option value="gemini-2.5-flash"></option>
+        <option value="gemini-3.1-flash-lite"></option>
+        <option value="gemini-2.5-flash-lite"></option>
+      </datalist>
+      <p class="hint">默认 gemini-3.5-flash；想更快更省可切 flash-lite 系列。</p>
+
+      <label class="toggle"><input id="showIcon" type="checkbox" checked /> 选中文字后显示划词图标</label>
+      <p class="hint">关闭后仅可通过快捷键触发。</p>
+
+      <button id="save">保存</button><span id="status"></span>
+
+      <p class="hint" style="margin-top: 32px">
+        修改快捷键：在地址栏打开 <code>chrome://extensions/shortcuts</code>
+      </p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
