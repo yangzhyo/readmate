@@ -1,7 +1,7 @@
 import AppKit
 
 /// 全局事件监听：
-/// - 选取手势（拖选 / 双击选词）结束时上报，用于浮现划词图标
+/// - 选取手势（拖选 / 双击选词）结束且有选区证据时上报，用于浮现划词图标
 /// - 解释卡可见时吞掉 Esc 用于关卡（避免 Esc 漏给底下的应用——在 Claude Code 里那是打断 Agent 的键）
 /// - 任意按键 / 鼠标按下时上报，用于收起划词图标
 final class EventTap {
@@ -20,10 +20,17 @@ final class EventTap {
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var mouseDownLocation: CGPoint?
+    private var mouseDownChangeCount: Int?
+    /// 每次鼠标按下/按键递增。选区证据是异步探测的，靠它丢弃过期结果——
+    /// 探测期间用户已有新动作时，迟到的图标不该再浮出来
+    private var gestureGeneration = 0
 
     private static let keyCodeEscape: Int64 = 53
     private static let dragThreshold: CGFloat = 12
     private static let chromeBundleIDPrefix = "com.google.Chrome"
+    /// 选中即复制的应用可能在 mouseUp 之后才写剪贴板，稍等再看一眼
+    private static let clipboardGraceDelay: TimeInterval = 0.25
+    private static let evidenceQueue = DispatchQueue(label: "translator.selection-evidence")
 
     private static func isChromeFamily(_ bundleID: String) -> Bool {
         bundleID == chromeBundleIDPrefix || bundleID.hasPrefix(chromeBundleIDPrefix + ".")
@@ -62,7 +69,9 @@ final class EventTap {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
 
         case .leftMouseDown:
+            gestureGeneration += 1
             mouseDownLocation = event.location
+            mouseDownChangeCount = NSPasteboard.general.changeCount
             let point = Self.appKitPoint(event.location)
             DispatchQueue.main.async { [weak self] in self?.onMouseDown?(point) }
 
@@ -70,6 +79,7 @@ final class EventTap {
             handleMouseUp(event)
 
         case .keyDown:
+            gestureGeneration += 1
             DispatchQueue.main.async { [weak self] in self?.onKeyDown?() }
             if event.getIntegerValueField(.keyboardEventKeycode) == Self.keyCodeEscape,
                let onEscape, onEscape() {
@@ -85,7 +95,9 @@ final class EventTap {
     private func handleMouseUp(_ event: CGEvent) {
         let upLocation = event.location
         let downLocation = mouseDownLocation
+        let changeCountAtDown = mouseDownChangeCount
         mouseDownLocation = nil
+        mouseDownChangeCount = nil
 
         // 拖选（按下→移动超过阈值→抬起）或双击/三击选词才算选取手势
         let clickCount = event.getIntegerValueField(.mouseEventClickState)
@@ -101,7 +113,36 @@ final class EventTap {
 
         let point = Self.appKitPoint(upLocation)
         if shouldIgnorePoint?(point) == true { return }
-        DispatchQueue.main.async { [weak self] in self?.onSelectionGesture?(point) }
+        confirmSelectionEvidence(changeCountAtDown: changeCountAtDown) { [weak self] in
+            self?.onSelectionGesture?(point)
+        }
+    }
+
+    /// 手势只是形似选取，还须有选区证据才上报，否则双击空白/空白处拖动/拖窗口也会浮出图标。
+    /// 证据二选一（见 docs/adr/0003）：
+    /// ① AX 焦点元素报出非空选区——覆盖多数原生应用；
+    /// ② 手势期间剪贴板变过——覆盖选中即复制、没有 AX 选区的应用（如 Claude Code 的 TUI）。
+    /// AX 询问对假死应用最多阻塞 0.3 秒/次，放主线程就是拖住全局事件投递
+    /// （前车之鉴见 SelectionCapture 的超时注释），所以放串行后台队列。
+    private func confirmSelectionEvidence(changeCountAtDown: Int?, then report: @escaping () -> Void) {
+        let generation = gestureGeneration
+        let clipboardChanged = {
+            changeCountAtDown.map { NSPasteboard.general.changeCount != $0 } ?? false
+        }
+        Self.evidenceQueue.async {
+            let hasAXSelection = SelectionCapture.hasNonEmptyAXSelection()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, generation == self.gestureGeneration else { return }
+                if hasAXSelection || clipboardChanged() {
+                    report()
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.clipboardGraceDelay) { [weak self] in
+                    guard let self, generation == self.gestureGeneration else { return }
+                    if clipboardChanged() { report() }
+                }
+            }
+        }
     }
 
     /// CGEvent 坐标原点在主屏左上，AppKit 在主屏左下

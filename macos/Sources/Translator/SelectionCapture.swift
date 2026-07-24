@@ -27,6 +27,19 @@ enum SelectionCapture {
         return nil
     }
 
+    /// 轻量探测焦点元素是否有非空 AX 选区——给 EventTap 过滤假阳性手势用（见 docs/adr/0003）。
+    /// 只读选中文字，不取上下文/锚点，也不走 ⌘C 兜底——兜底会注入按键、动剪贴板，
+    /// 不能跟着每次手势跑
+    static func hasNonEmptyAXSelection() -> Bool {
+        var focusedRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+              let focusedRef else { return false }
+        var selectionRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(focusedRef as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectionRef) == .success,
+              let selection = selectionRef as? String else { return false }
+        return !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     // MARK: - AX 路径
 
     private static func captureViaAX() -> Capture? {
