@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      extension: ${{ steps.filter.outputs.extension }}
+      macos: ${{ steps.filter.outputs.macos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            extension:
+              - 'extension/**'
+            macos:
+              - 'macos/**'
+
+  extension:
+    needs: changes
+    if: needs.changes.outputs.extension == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: extension/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm compile
+      - run: pnpm build
+
+  macos:
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+        working-directory: macos
+
+  # 唯一的必过检查。改哪端跑哪端，被跳过的任务视为通过；
+  # 任一实际运行的任务失败则整体失败。
+  ci:
+    needs: [changes, extension, macos]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "all required jobs passed"
