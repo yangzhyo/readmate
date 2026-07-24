@@ -5,7 +5,8 @@ import AppKit
 /// - 解释卡可见时吞掉 Esc 用于关卡（避免 Esc 漏给底下的应用——在 Claude Code 里那是打断 Agent 的键）
 /// - 任意按键 / 鼠标按下时上报，用于收起划词图标
 final class EventTap {
-    /// 选取手势结束，参数为 AppKit（左下原点）坐标。Chrome 前台时不上报——浏览器内由插件的划词图标负责
+    /// 选取手势结束，参数为 AppKit（左下原点）坐标。Chrome 前台时不上报——浏览器内由插件的划词图标负责。
+    /// Chrome App 独立窗口的 shim 进程 bundle ID 形如 com.google.Chrome.app.<id>，同样属于插件地盘
     var onSelectionGesture: ((NSPoint) -> Void)?
     /// 返回 true 表示 Esc 已被消费（解释卡正显示并被关闭）
     var onEscape: (() -> Bool)?
@@ -22,12 +23,11 @@ final class EventTap {
 
     private static let keyCodeEscape: Int64 = 53
     private static let dragThreshold: CGFloat = 12
-    private static let chromeBundleIDs: Set<String> = [
-        "com.google.Chrome",
-        "com.google.Chrome.beta",
-        "com.google.Chrome.canary",
-        "com.google.Chrome.dev",
-    ]
+    private static let chromeBundleIDPrefix = "com.google.Chrome"
+
+    private static func isChromeFamily(_ bundleID: String) -> Bool {
+        bundleID == chromeBundleIDPrefix || bundleID.hasPrefix(chromeBundleIDPrefix + ".")
+    }
 
     /// 需要辅助功能权限；未授权时创建失败，返回 false
     func start() -> Bool {
@@ -95,7 +95,7 @@ final class EventTap {
         guard dragged || clickCount >= 2 else { return }
 
         if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-           Self.chromeBundleIDs.contains(frontmost) {
+           Self.isChromeFamily(frontmost) {
             return
         }
 
