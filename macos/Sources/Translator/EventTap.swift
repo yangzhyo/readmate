@@ -147,7 +147,12 @@ final class EventTap {
                 case .selected:
                     report()
                 case .noSelection:
-                    self.reportIfClipboardChanges(clipboardChanged, generation: generation, report: report)
+                    self.reportIfEvidenceEmerges(
+                        clipboardChanged: clipboardChanged,
+                        frontmostBundleID: bundleID,
+                        generation: generation,
+                        report: report
+                    )
                 case .unjudgeable:
                     self.resolveUnjudgeable(
                         frontmost: frontmost,
@@ -160,9 +165,13 @@ final class EventTap {
         }
     }
 
-    /// 无选区判定的兜底：立即或稍后（选中即复制的应用写剪贴板可能晚于 mouseUp）发现剪贴板变过就浮现
-    private func reportIfClipboardChanges(
-        _ clipboardChanged: @escaping () -> Bool,
+    /// 无选区判定的兜底：立即看剪贴板，0.3 秒后再复查剪贴板并复判一次 AX。
+    /// 迟到的证据是真实存在的——选中即复制的应用（TUI）写剪贴板晚于 mouseUp；
+    /// Terminal 则连选区本身都是 mouseUp 之后才异步提交（实测双击 +50ms 才可读，
+    /// 拖选在 +5ms 可读但仍晚于本探测），首判必然扑空
+    private func reportIfEvidenceEmerges(
+        clipboardChanged: @escaping () -> Bool,
+        frontmostBundleID: String?,
         generation: Int,
         report: @escaping () -> Void
     ) {
@@ -172,7 +181,18 @@ final class EventTap {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.evidenceGraceDelay) { [weak self] in
             guard let self, generation == self.gestureGeneration else { return }
-            if clipboardChanged() { report() }
+            if clipboardChanged() {
+                report()
+                return
+            }
+            Self.evidenceQueue.async {
+                let verdict = SelectionCapture.axSelectionVerdict(frontmostBundleID: frontmostBundleID)
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, generation == self.gestureGeneration else { return }
+                    // 复判只认「有选区」；仍无选区或反而无法作证都维持原判，避免复判放宽标准
+                    if verdict == .selected { report() }
+                }
+            }
         }
     }
 
