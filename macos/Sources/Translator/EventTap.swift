@@ -24,12 +24,14 @@ final class EventTap {
     /// 每次鼠标按下/按键递增。选区证据是异步探测的，靠它丢弃过期结果——
     /// 探测期间用户已有新动作时，迟到的图标不该再浮出来
     private var gestureGeneration = 0
+    /// 已尝试注入无障碍激活开关的进程（每个应用实例只试一次）
+    private var activationAttemptedPIDs = Set<pid_t>()
 
     private static let keyCodeEscape: Int64 = 53
     private static let dragThreshold: CGFloat = 12
     private static let chromeBundleIDPrefix = "com.google.Chrome"
-    /// 选中即复制的应用可能在 mouseUp 之后才写剪贴板，稍等再看一眼
-    private static let clipboardGraceDelay: TimeInterval = 0.25
+    /// 复判等待：选中即复制的应用可能在 mouseUp 之后才写剪贴板；刚注入激活开关的应用需要一点时间起树
+    private static let evidenceGraceDelay: TimeInterval = 0.3
     private static let evidenceQueue = DispatchQueue(label: "translator.selection-evidence")
 
     private static func isChromeFamily(_ bundleID: String) -> Bool {
@@ -106,40 +108,107 @@ final class EventTap {
         } ?? false
         guard dragged || clickCount >= 2 else { return }
 
-        if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-           Self.isChromeFamily(frontmost) {
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        if let bundleID = frontmost?.bundleIdentifier, Self.isChromeFamily(bundleID) {
             return
         }
 
         let point = Self.appKitPoint(upLocation)
         if shouldIgnorePoint?(point) == true { return }
-        confirmSelectionEvidence(changeCountAtDown: changeCountAtDown) { [weak self] in
+        confirmSelectionEvidence(changeCountAtDown: changeCountAtDown, frontmost: frontmost) { [weak self] in
             self?.onSelectionGesture?(point)
         }
     }
 
     /// 手势只是形似选取，还须有选区证据才上报，否则双击空白/空白处拖动/拖窗口也会浮出图标。
-    /// 证据二选一（见 docs/adr/0003）：
-    /// ① AX 焦点元素报出非空选区——覆盖多数原生应用；
-    /// ② 手势期间剪贴板变过——覆盖选中即复制、没有 AX 选区的应用（如 Claude Code 的 TUI）。
+    /// 证据规则（见 docs/adr/0003）：
+    /// ① AX 焦点元素报出非空选区 → 浮现——覆盖多数原生应用；
+    /// ② 手势期间剪贴板变过 → 浮现——覆盖选中即复制、没有 AX 选区的应用（如 Claude Code 的 TUI）；
+    /// ③ AX 明确作证无选区且剪贴板没动 → 按假阳性丢弃；
+    /// ④ AX 无法作证（无障碍树未启用/焦点是不透明容器）→ 尝试注入 Electron 激活开关后复判，
+    ///    仍无法作证则宁可疑罪从无，按旧行为浮现（WhatsApp 这类 AX 暴露不全的应用还得能用）。
     /// AX 询问对假死应用最多阻塞 0.3 秒/次，放主线程就是拖住全局事件投递
     /// （前车之鉴见 SelectionCapture 的超时注释），所以放串行后台队列。
-    private func confirmSelectionEvidence(changeCountAtDown: Int?, then report: @escaping () -> Void) {
+    private func confirmSelectionEvidence(
+        changeCountAtDown: Int?,
+        frontmost: NSRunningApplication?,
+        then report: @escaping () -> Void
+    ) {
         let generation = gestureGeneration
         let clipboardChanged = {
             changeCountAtDown.map { NSPasteboard.general.changeCount != $0 } ?? false
         }
+        let bundleID = frontmost?.bundleIdentifier
         Self.evidenceQueue.async {
-            let hasAXSelection = SelectionCapture.hasNonEmptyAXSelection()
+            let verdict = SelectionCapture.axSelectionVerdict(frontmostBundleID: bundleID)
             DispatchQueue.main.async { [weak self] in
                 guard let self, generation == self.gestureGeneration else { return }
-                if hasAXSelection || clipboardChanged() {
+                switch verdict {
+                case .selected:
                     report()
-                    return
+                case .noSelection:
+                    self.reportIfClipboardChanges(clipboardChanged, generation: generation, report: report)
+                case .unjudgeable:
+                    self.resolveUnjudgeable(
+                        frontmost: frontmost,
+                        clipboardChanged: clipboardChanged,
+                        generation: generation,
+                        report: report
+                    )
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.clipboardGraceDelay) { [weak self] in
+            }
+        }
+    }
+
+    /// 无选区判定的兜底：立即或稍后（选中即复制的应用写剪贴板可能晚于 mouseUp）发现剪贴板变过就浮现
+    private func reportIfClipboardChanges(
+        _ clipboardChanged: @escaping () -> Bool,
+        generation: Int,
+        report: @escaping () -> Void
+    ) {
+        if clipboardChanged() {
+            report()
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.evidenceGraceDelay) { [weak self] in
+            guard let self, generation == self.gestureGeneration else { return }
+            if clipboardChanged() { report() }
+        }
+    }
+
+    /// AX 无法作证时：没试过的应用先注入 Electron 无障碍激活开关（接受后给树一点启动时间再复判一次）；
+    /// 开关被拒或复判仍无法作证 → 回退旧行为浮现
+    private func resolveUnjudgeable(
+        frontmost: NSRunningApplication?,
+        clipboardChanged: @escaping () -> Bool,
+        generation: Int,
+        report: @escaping () -> Void
+    ) {
+        guard let frontmost, !activationAttemptedPIDs.contains(frontmost.processIdentifier) else {
+            report()
+            return
+        }
+        activationAttemptedPIDs.insert(frontmost.processIdentifier)
+        let bundleID = frontmost.bundleIdentifier
+        let pid = frontmost.processIdentifier
+        Self.evidenceQueue.async {
+            guard SelectionCapture.requestAXActivation(pid: pid) else {
+                DispatchQueue.main.async { [weak self] in
                     guard let self, generation == self.gestureGeneration else { return }
-                    if clipboardChanged() { report() }
+                    report()
+                }
+                return
+            }
+            Self.evidenceQueue.asyncAfter(deadline: .now() + Self.evidenceGraceDelay) {
+                let verdict = SelectionCapture.axSelectionVerdict(frontmostBundleID: bundleID)
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, generation == self.gestureGeneration else { return }
+                    switch verdict {
+                    case .selected, .unjudgeable:
+                        report()
+                    case .noSelection:
+                        if clipboardChanged() { report() }
+                    }
                 }
             }
         }

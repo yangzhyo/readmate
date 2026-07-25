@@ -27,17 +27,60 @@ enum SelectionCapture {
         return nil
     }
 
-    /// 轻量探测焦点元素是否有非空 AX 选区——给 EventTap 过滤假阳性手势用（见 docs/adr/0003）。
-    /// 只读选中文字，不取上下文/锚点，也不走 ⌘C 兜底——兜底会注入按键、动剪贴板，
-    /// 不能跟着每次手势跑
-    static func hasNonEmptyAXSelection() -> Bool {
+    // MARK: - 选区证据（给 EventTap 过滤假阳性手势用，见 docs/adr/0003）
+
+    /// AX 对「当前是否存在非空选区」的证词
+    enum AXSelectionVerdict {
+        /// 焦点元素报出非空选中文字
+        case selected
+        /// 明确无选区：真文本控件选区为空，或焦点在文件/列表类语境（桌面、Finder、各类列表）
+        case noSelection
+        /// 无法作证：焦点探不到（无障碍树未启用等）或焦点是装不下选区的不透明容器（如 WhatsApp 的 AXGroup）
+        case unjudgeable
+    }
+
+    /// 轻量探测，只读焦点元素的选中文字（必要时加读角色），不取上下文/锚点，
+    /// 也不走 ⌘C 兜底——兜底会注入按键、动剪贴板，不能跟着每次手势跑。
+    /// frontmostBundleID 由调用方在手势时刻捕获，避免此处跨线程再查前台应用
+    static func axSelectionVerdict(frontmostBundleID: String?) -> AXSelectionVerdict {
         var focusedRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
-              let focusedRef else { return false }
+              let focusedRef else { return .unjudgeable }
+        let element = focusedRef as! AXUIElement
+
         var selectionRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(focusedRef as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectionRef) == .success,
-              let selection = selectionRef as? String else { return false }
-        return !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectionRef) {
+        case .success:
+            let selection = (selectionRef as? String) ?? ""
+            return selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .noSelection : .selected
+        case .noValue:
+            return .noSelection
+        case .attributeUnsupported:
+            // 元素装不下文字选区。桌面与文件管理语境按无选区处理；
+            // 其余是 AX 暴露不全的不透明容器，宁可疑罪从无
+            if frontmostBundleID == "com.apple.finder" { return .noSelection }
+            var roleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
+            if let role = roleRef as? String, collectionRoles.contains(role) { return .noSelection }
+            return .unjudgeable
+        default:
+            return .unjudgeable
+        }
+    }
+
+    /// 文件/列表类角色：焦点落在这里的选取手势是在摆弄条目（拖文件、框选图标），不是选文字
+    private static let collectionRoles: Set<String> = [
+        kAXOutlineRole as String, kAXTableRole as String, kAXListRole as String,
+        kAXBrowserRole as String, kAXRowRole as String, kAXCellRole as String,
+        kAXColumnRole as String,
+    ]
+
+    /// Chromium/Electron 系应用的无障碍树默认关闭，焦点探不到时注入 Electron 官方开关
+    /// AXManualAccessibility 促其启用（Chrome 走插件不经这里）。非 Electron 应用会拒绝该属性。
+    /// 返回 true 表示对方接受了开关，值得稍后复判
+    static func requestAXActivation(pid: pid_t) -> Bool {
+        let appElement = AXUIElementCreateApplication(pid)
+        return AXUIElementSetAttributeValue(appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue) == .success
     }
 
     // MARK: - AX 路径
