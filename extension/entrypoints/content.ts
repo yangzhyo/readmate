@@ -262,12 +262,20 @@ function pickVoice(): SpeechSynthesisVoice | null {
 function speak(word: string): void {
   const synth = window.speechSynthesis;
   if (!synth) return;
-  synth.cancel();
+
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = 'en-US'; // 与卡片上的美式 IPA 同口音
   const voice = pickVoice();
   if (voice) utterance.voice = voice;
-  synth.speak(utterance);
+
+  if (!synth.speaking && !synth.pending) {
+    synth.speak(utterance);
+    return;
+  }
+  // cancel() 是异步的：同一 tick 里紧接着 speak()，新 utterance 会被这次 cancel
+  // 一起扫掉，只拿到 error: canceled 且没有声音。让出一拍再排队。
+  synth.cancel();
+  setTimeout(() => synth.speak(utterance), 0);
 }
 
 function showToast(text: string): void {
