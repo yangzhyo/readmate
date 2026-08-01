@@ -36,7 +36,7 @@ function onTrigger(): void {
   const context = extractContext(selection);
 
   card?.close();
-  card = new Card(rect, () => {
+  card = new Card(rect, selectionText, () => {
     card = null;
   });
   card.request({ type: 'explain', selection: selectionText, context });
@@ -108,12 +108,18 @@ class Card {
 
   constructor(
     anchor: DOMRect,
+    selection: string,
     private onClose: () => void,
   ) {
     this.host = document.createElement('div');
     const shadow = this.host.attachShadow({ mode: 'open' });
-    shadow.innerHTML = `<style>${CARD_CSS}</style><div class="card" part="card"><div class="body"></div></div>`;
+    // 发音不经引擎：选区此刻已知，卡片一出现就能点，引擎报错或超时照样能听
+    const word = speakableWord(selection);
+    shadow.innerHTML =
+      `<style>${CARD_CSS}</style><div class="card" part="card"><div class="body"></div></div>` +
+      (word ? `<button class="speak" title="听发音">${SPEAKER_SVG}</button>` : '');
     this.bodyEl = shadow.querySelector('.body')!;
+    if (word) shadow.querySelector('.speak')!.addEventListener('click', () => speak(word));
     this.position(anchor);
     document.documentElement.append(this.host);
     this.showStatus('思考中…');
@@ -154,6 +160,7 @@ class Card {
   }
 
   close(): void {
+    window.speechSynthesis?.cancel();
     this.port?.disconnect();
     this.port = null;
     document.removeEventListener('keydown', this.onKeydown, true);
@@ -216,6 +223,23 @@ class Card {
   }
 }
 
+/** 只有单词才发音，与音标同条件：去掉首尾标点后不含空白，且是拉丁字母词 */
+function speakableWord(selection: string): string | null {
+  const word = selection.trim().replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+  if (!word || /\s/.test(word) || !/[A-Za-z]/.test(word)) return null;
+  return word;
+}
+
+/** 正在播时再点 = 打断重播，不叠音 */
+function speak(word: string): void {
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+  synth.cancel();
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = 'en-US'; // 与卡片上的美式 IPA 同口音
+  synth.speak(utterance);
+}
+
 function showToast(text: string): void {
   const toast = document.createElement('div');
   const shadow = toast.attachShadow({ mode: 'open' });
@@ -239,6 +263,8 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+const SPEAKER_SVG = `<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8.4 2.3a.7.7 0 0 0-.76.09L4.6 5H2.6A1.6 1.6 0 0 0 1 6.6v2.8A1.6 1.6 0 0 0 2.6 11h2l3.04 2.61a.7.7 0 0 0 1.16-.53V2.93a.7.7 0 0 0-.4-.63Z"/><path d="M11.06 5.15a.65.65 0 0 0-.76 1.05 2.4 2.4 0 0 1 0 3.6.65.65 0 1 0 .76 1.05 3.7 3.7 0 0 0 0-5.7Z"/><path d="M13.2 2.85a.65.65 0 0 0-.74 1.07 5.05 5.05 0 0 1 0 8.16.65.65 0 0 0 .74 1.07 6.35 6.35 0 0 0 0-10.3Z"/></svg>`;
+
 const CARD_CSS = `
 :host { all: initial; }
 .card {
@@ -256,7 +282,8 @@ const CARD_CSS = `
   user-select: text;
   -webkit-user-select: text;
 }
-.body { word-break: break-word; }
+/* 右侧留出喇叭的位置，正文任何长度都不会压到它下面 */
+.body { word-break: break-word; padding-right: 26px; }
 .body strong { color: #0550ae; }
 .body code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -265,6 +292,23 @@ const CARD_CSS = `
   border-radius: 4px;
   padding: 0.1em 0.3em;
 }
+/* 定位到 host（即卡片外框），因而不随卡片内容滚动 */
+.speak {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #8c959f;
+  cursor: pointer;
+}
+.speak:hover { color: #0969da; }
 .status { color: #656d76; }
 .status::after {
   content: '';
@@ -302,6 +346,8 @@ const CARD_CSS = `
   .error { color: #ff7b72; }
   .action { color: #e6edf3; background: #2d333b; border-color: #444c56; }
   .action:hover { background: #373e47; }
+  .speak { color: #768390; }
+  .speak:hover { color: #79b8ff; }
 }
 `;
 
