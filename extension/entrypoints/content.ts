@@ -9,6 +9,8 @@ import {
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
+    // getVoices() 首次可能返回空表，提前触发一次填充，等真正点喇叭时已就绪
+    window.speechSynthesis?.getVoices();
     document.addEventListener('mouseup', onMouseUp);
     document.addEventListener('selectionchange', () => {
       const selection = window.getSelection();
@@ -230,6 +232,32 @@ function speakableWord(selection: string): string | null {
   return word;
 }
 
+/**
+ * 只给 lang 不给 voice 时，Chrome 按语音表首个匹配项挑——而 macOS 的英语语音表
+ * 按字母序打头的是 Albert、Bad News、Bahh 这些趣味音。系统语言非英语时（本产品的
+ * 读者几乎都是）更没有「默认英语语音」兜底，必然挑中它们，听起来不像人在说话。
+ */
+const PREFERRED_VOICES = [
+  'Samantha', // macOS 美音基准；macOS 载体的 AVSpeechSynthesizer 选的也是它，两端同声
+  'Alex',
+  'Microsoft Aria',
+  'Microsoft Zira',
+  'Microsoft David',
+];
+
+function pickVoice(): SpeechSynthesisVoice | null {
+  // 只用本地语音：远程语音（如 Google US English）会把读者查的词发给第三方
+  const local = window.speechSynthesis.getVoices().filter((v) => v.localService && v.lang === 'en-US');
+  for (const name of PREFERRED_VOICES) {
+    // 前缀匹配：Chrome 会给语音名加后缀（macOS 的「Flo (英语（美国）)」、
+    // Windows 的「Microsoft David Desktop - English (United States)」），精确匹配匹不中
+    const hit = local.find((v) => v.name === name || v.name.startsWith(`${name} `));
+    if (hit) return hit;
+  }
+  // 都没有就退回系统标记的默认英语语音；再没有则交给浏览器，不盲选首个
+  return local.find((v) => v.default) ?? null;
+}
+
 /** 正在播时再点 = 打断重播，不叠音 */
 function speak(word: string): void {
   const synth = window.speechSynthesis;
@@ -237,6 +265,8 @@ function speak(word: string): void {
   synth.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = 'en-US'; // 与卡片上的美式 IPA 同口音
+  const voice = pickVoice();
+  if (voice) utterance.voice = voice;
   synth.speak(utterance);
 }
 
