@@ -14,6 +14,8 @@ final class PanelModel: ObservableObject {
     @Published var state: State = .loading
     /// 实际取到的选区，显示在卡片顶部——取词是启发式的，让用户能一眼核对取的是什么
     @Published var selection = ""
+    /// 选区是单个单词时为可发音的词，短语与句子为 nil——决定选区行右侧有没有喇叭
+    @Published var speakableWord: String?
 }
 
 /// 解释卡：不抢焦点的浮动面板。Esc 的关闭由 EventTap 兜住（见 AppDelegate 接线），
@@ -44,6 +46,7 @@ final class ExplanationPanel {
     }
 
     func close() {
+        Pronunciation.stop()
         panel?.orderOut(nil)
         removeClickMonitor()
     }
@@ -53,6 +56,8 @@ final class ExplanationPanel {
     func begin(selection: String) {
         hintToken += 1
         model.selection = selection
+        // 发音不经引擎：此刻就定下来，卡片一出现就能点，引擎报错或超时照样能听
+        model.speakableWord = Pronunciation.speakableWord(in: selection)
         model.text = ""
         model.state = .loading
         resizeSoon()
@@ -79,6 +84,7 @@ final class ExplanationPanel {
     func showTransientHint(_ message: String, near anchor: NSPoint) {
         show(near: anchor)
         model.selection = ""
+        model.speakableWord = nil
         model.text = message
         model.state = .hint
         resizeSoon()
@@ -165,11 +171,22 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !model.selection.isEmpty {
-                Text(model.selection)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                HStack(spacing: 6) {
+                    Text(model.selection)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if let word = model.speakableWord {
+                        Spacer(minLength: 4)
+                        Button { Pronunciation.speak(word) } label: {
+                            Image(systemName: "speaker.wave.2.fill").font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help("听发音")
+                    }
+                }
             }
             switch model.state {
             case .loading:
