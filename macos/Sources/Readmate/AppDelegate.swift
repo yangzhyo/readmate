@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let apiKey = Settings.apiKey
         guard !apiKey.isEmpty else {
-            panel.fail("未配置 API key——点菜单栏「译」→ 设置…")
+            panel.fail("未配置 API key——点菜单栏的鹦鹉图标 → 设置…")
             return
         }
 
@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "译"
+        item.button?.image = ParrotSprite.template
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu

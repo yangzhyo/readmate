@@ -1,4 +1,5 @@
 import { extractContext } from '../utils/extract-context';
+import { parrotSvg } from '../utils/parrot';
 import {
   EXPLAIN_PORT,
   type ExplainRequest,
@@ -78,7 +79,7 @@ class TriggerIcon {
   constructor(onActivate: () => void) {
     this.host = document.createElement('div');
     const shadow = this.host.attachShadow({ mode: 'open' });
-    shadow.innerHTML = `<style>${ICON_CSS}</style><button class="icon" title="解释选中内容">译</button>`;
+    shadow.innerHTML = `<style>${ICON_CSS}</style><button class="icon" title="解释选中内容">${parrotSvg()}</button>`;
     const button = shadow.querySelector('button')!;
     // 阻止 mousedown 默认行为，避免点击图标时选区被清除
     button.addEventListener('mousedown', (event) => event.preventDefault());
@@ -348,15 +349,13 @@ const ICON_CSS = `
   height: 26px;
   padding: 0;
   border: none;
-  border-radius: 50%;
-  background: #0969da;
-  color: #ffffff;
-  font: 600 13px/1 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.3);
+  background: transparent;
+  filter: drop-shadow(0 1px 1.5px rgba(31, 35, 40, 0.35));
   cursor: pointer;
   transition: transform 0.1s ease;
 }
-.icon:hover { transform: scale(1.12); }
+/* 悬停只做整像素位移：像素画放大到非整数倍会发虚 */
+.icon:hover { transform: translateY(-2px); }
 `;
 
 const TOAST_CSS = `

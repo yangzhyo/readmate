@@ -1,5 +1,7 @@
 #!/usr/bin/swift
 // 生成应用图标（PNG）：像素风鹦鹉。像素画用下面的字符网格定义，改网格即可换动物/表情。
+// 划词图标与菜单栏图标用的是同一只鹦鹉：改网格或配色时，同步 Sources/Readmate/ParrotSprite.swift
+// 与 extension/utils/parrot.ts。
 // 用法：
 //   swift make-icon.swift <输出.png>          → 1024 的 macOS 图标（白底圆角方块）
 //   swift make-icon.swift <输出.png> <边长>   → 透明底、仅精灵（Chrome 插件图标用）
