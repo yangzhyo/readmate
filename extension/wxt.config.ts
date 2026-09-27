@@ -2,8 +2,8 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   manifest: {
-    name: 'Readmate — 英文阅读即时理解',
-    description: '选中看不懂的英文单词或句子，点击浮现的图标获得语境化中文解释',
+    name: 'Readmate — 阅读即时理解',
+    description: '选中看不懂的词句、术语或缩写，点击浮现的图标获得语境化中文解释',
     permissions: ['storage'],
     host_permissions: ['https://generativelanguage.googleapis.com/*'],
     icons: {
