@@ -12,7 +12,7 @@ open /Applications/Readmate.app
 
 首次运行会引导授予**辅助功能**权限（系统设置 → 隐私与安全性 → 辅助功能）——取词、选取手势检测和 `Esc` 关卡都依赖它。授权后无需重启应用，工具会自动重试。之后点菜单栏的鹦鹉图标 →「设置…」填入 [Google AI Studio](https://aistudio.google.com/apikey) 的 Gemini API key。
 
-- API key 存本机钥匙串；模型默认 `gemini-3.5-flash`，可在设置里改
+- API key 存本机钥匙串；模型默认 `gemini-3.8-flash`，可在设置里改
 - 划词图标由选取手势（拖选/双击）唤出，几秒无操作自动消失，按键或点别处也会收起；拖窗口等动作偶尔会误浮图标，不理会即可（取舍见 [ADR-0002](../docs/adr/0002-icon-only-trigger.md)）
 - 菜单栏鹦鹉图标 →「解释当前选中」是兜底入口；「启用划词图标」可整体停用
 - 默认注册开机自启，可在菜单栏关闭

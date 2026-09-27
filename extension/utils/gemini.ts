@@ -24,7 +24,12 @@ export async function* streamExplanation(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: buildUserPrompt(selection, context) }] }],
-      generationConfig: { maxOutputTokens: 4096 },
+      generationConfig: {
+        maxOutputTokens: 4096,
+        // 默认推理强度下，模型每次先花数百 token 推理才出第一个字（实测 3.5 Flash 首字中位 4.3s）；
+        // low 在验收用例上质量不降、推理 token 归零，3.8 Flash 首字中位 1.1s。minimal 并非所有模型都支持。
+        thinkingConfig: { thinkingLevel: 'low' },
+      },
     }),
   });
 
