@@ -6,7 +6,7 @@ enum Settings {
     static let defaultModel = "gemini-3.5-flash"
 
     private static let modelKey = "model"
-    private static let keychainService = "Translator"
+    private static let keychainService = "Readmate"
     private static let keychainAccount = "gemini-api-key"
 
     static var model: String {

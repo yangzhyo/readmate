@@ -2,9 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "Translator",
+    name: "Readmate",
     platforms: [.macOS(.v13)],
     targets: [
-        .executableTarget(name: "Translator", path: "Sources/Translator")
+        .executableTarget(name: "Readmate", path: "Sources/Readmate")
     ]
 )

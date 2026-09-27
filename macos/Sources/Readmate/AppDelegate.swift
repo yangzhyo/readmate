@@ -238,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Translator 设置"
+            window.title = "Readmate 设置"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(onDone: { [weak self] in
                 self?.settingsWindow?.close()

@@ -1,13 +1,13 @@
-# Translator for macOS — 终端与桌面应用里的英文阅读即时理解
+# Readmate for macOS — 终端与桌面应用里的英文阅读即时理解
 
 菜单栏常驻工具（图标「译」）。在**任意应用**（终端里的 Claude Code、桌面版 ChatGPT 等）选中英文（拖选或双击选词），点击浮现的**划词图标**，选区旁浮出语境化中文解释；`Esc` 或点卡外关闭，立即回到阅读。Chrome 前台不浮图标——浏览器内由插件的划词图标负责。
 
 ## 构建与安装
 
 ```sh
-./make-app.sh        # swift build + 组装 Translator.app（ad-hoc 签名）
-mv Translator.app /Applications/
-open /Applications/Translator.app
+./make-app.sh        # swift build + 组装 Readmate.app（ad-hoc 签名）
+mv Readmate.app /Applications/
+open /Applications/Readmate.app
 ```
 
 首次运行会引导授予**辅助功能**权限（系统设置 → 隐私与安全性 → 辅助功能）——取词、选取手势检测和 `Esc` 关卡都依赖它。授权后无需重启应用，工具会自动重试。之后点菜单栏「译」→「设置…」填入 [Google AI Studio](https://aistudio.google.com/apikey) 的 Gemini API key。

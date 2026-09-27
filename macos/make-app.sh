@@ -1,15 +1,15 @@
 #!/bin/sh
-# 把 SwiftPM 产物组装成 Translator.app。
+# 把 SwiftPM 产物组装成 Readmate.app。
 # 菜单栏常驻（LSUIElement）与开机自启（SMAppService）都要求以 .app bundle 形式运行。
 set -e
 cd "$(dirname "$0")"
 
 swift build -c release
 
-APP=Translator.app
+APP=Readmate.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
-cp .build/release/Translator "$APP/Contents/MacOS/Translator"
+cp .build/release/Readmate "$APP/Contents/MacOS/Readmate"
 cp Info.plist "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources"
 cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # 重新生成：swift make-icon.swift + iconutil
