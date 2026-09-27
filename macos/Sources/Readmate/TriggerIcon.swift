@@ -69,13 +69,12 @@ struct TriggerIconView: View {
 
     var body: some View {
         Button(action: onClick) {
-            Text("译")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+            // 鹦鹉按原尺寸（每格 1pt）显示，放在 26pt 见方的点击区域中央
+            Image(nsImage: ParrotSprite.color)
+                .interpolation(.none)
+                .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
                 .frame(width: 26, height: 26)
-                // 与插件划词图标同色（#0969da）
-                .background(Circle().fill(Color(red: 0x09 / 255.0, green: 0x69 / 255.0, blue: 0xda / 255.0)))
-                .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(3)

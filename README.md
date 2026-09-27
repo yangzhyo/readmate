@@ -1,6 +1,6 @@
 # Readmate — 阅读即时理解
 
-选中看不懂的词句、术语或缩写，点一下浮现的「译」图标，**语境化中文解释**原地浮出——关掉立刻回到阅读。
+选中看不懂的词句、术语或缩写，点一下浮现的鹦鹉图标，**语境化中文解释**原地浮出——关掉立刻回到阅读。
 
 ![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white)
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white)
@@ -61,7 +61,7 @@ mv Readmate.app /Applications/
 open /Applications/Readmate.app
 ```
 
-首次运行按引导授予**辅助功能**权限（取词与手势检测依赖它），再从菜单栏「译」→「设置…」填入 API key。详见 [macos/README.md](./macos/README.md)。
+首次运行按引导授予**辅助功能**权限（取词与手势检测依赖它），再从菜单栏的鹦鹉图标 →「设置…」填入 API key。详见 [macos/README.md](./macos/README.md)。
 
 ## 工作原理
 
