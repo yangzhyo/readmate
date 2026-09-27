@@ -1,6 +1,6 @@
 import Foundation
 
-// 与 extension/utils/gemini.ts 行为对齐：streamGenerateContent SSE、maxOutputTokens 2048、错误摘要截断。
+// 与 extension/utils/gemini.ts 行为对齐：streamGenerateContent SSE、maxOutputTokens 4096、thinkingLevel low、错误摘要截断。
 enum GeminiError: LocalizedError {
     case api(Int, String)
 
@@ -34,7 +34,11 @@ enum GeminiClient {
                         "contents": [
                             ["role": "user", "parts": [["text": Prompt.user(selection: selection, context: context)]]]
                         ],
-                        "generationConfig": ["maxOutputTokens": 4096],
+                        // 推理强度取 low：默认强度下首字要等数秒，low 质量不降（理由详见 gemini.ts）
+                        "generationConfig": [
+                            "maxOutputTokens": 4096,
+                            "thinkingConfig": ["thinkingLevel": "low"],
+                        ],
                     ]
                     request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

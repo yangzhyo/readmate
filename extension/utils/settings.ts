@@ -3,7 +3,7 @@ export interface Settings {
   model: string;
 }
 
-export const DEFAULT_MODEL = 'gemini-3.5-flash';
+export const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 export async function loadSettings(): Promise<Settings> {
   const stored = await browser.storage.local.get(['apiKey', 'model']);

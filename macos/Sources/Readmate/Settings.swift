@@ -3,7 +3,7 @@ import Security
 
 /// API key 存钥匙串，模型等非敏感设置存 UserDefaults。两个载体各存一份 key，不同步。
 enum Settings {
-    static let defaultModel = "gemini-3.5-flash"
+    static let defaultModel = "gemini-3.8-flash"
 
     private static let modelKey = "model"
     private static let keychainService = "Readmate"
