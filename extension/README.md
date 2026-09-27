@@ -8,6 +8,8 @@
 - 选中**外文句子** → 整句翻译 + 一两句难点拆解（习语、语法、指代、术语）
 - 选中**中文** → 只解释不翻译
 
+单个英文单词的卡片右上角有喇叭，点一下听美式发音。
+
 设计原则：打断最小、回到阅读最快。查询不留任何记录。领域词汇见 [CONTEXT.md](../CONTEXT.md)。
 
 ## 构建
@@ -28,6 +30,7 @@ pnpm dev          # 开发模式（热重载）
 
 在任意网页选中看不懂的文字，点击光标旁浮现的鹦鹉图标。解释卡出现在选区旁，流式输出；`Esc` 或点击卡外关闭。
 
+- 发音：只用浏览器的本机英语语音（优先 Samantha 等美音），正在播时再点会从头重播，关卡即停
 - 换模型：设置页可改（默认 `gemini-3.8-flash`；`flash-lite` 系列更省，但对提示词规则遵循得差一些）
 
 ## 架构一览
@@ -41,8 +44,10 @@ utils/
 ├── extract-context.ts  # 上下文提取：所在段 + 前后各一段，上限 3000 字符
 ├── gemini.ts           # streamGenerateContent SSE 客户端
 ├── prompt.ts           # 系统提示词（语境化解释规则）
+├── pronunciation.ts    # 发音：Web Speech 本机合成，显式挑选美式语音
+├── parrot.ts           # 划词图标的像素鹦鹉（SVG），网格与 macOS 端、应用图标一致
 ├── settings.ts         # 设置读写
 └── messages.ts         # content ↔ background 消息类型
 ```
 
-隐私说明：触发时，选中文字及其前后段落会发送到 Google Gemini API；API key 只保存在本机 `chrome.storage.local`，不同步、不上传。
+隐私说明：触发时，选中文字及其前后段落会发送到 Google Gemini API；API key 只保存在本机 `chrome.storage.local`，不同步、不上传；发音在本机合成，不发送数据。

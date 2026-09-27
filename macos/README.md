@@ -5,12 +5,14 @@
 ## 构建与安装
 
 ```sh
-./make-app.sh        # swift build + 组装 Readmate.app（ad-hoc 签名）
+./make-app.sh        # swift build + 组装 Readmate.app（有开发者证书就用它签名，没有则 ad-hoc）
 mv Readmate.app /Applications/
 open /Applications/Readmate.app
 ```
 
-首次运行会引导授予**辅助功能**权限（系统设置 → 隐私与安全性 → 辅助功能）——取词、选取手势检测和 `Esc` 关卡都依赖它。授权后无需重启应用，工具会自动重试。之后点菜单栏的鹦鹉图标 →「设置…」填入 [Google AI Studio](https://aistudio.google.com/apikey) 的 Gemini API key。
+用开发者证书签名时，重新构建并替换应用后，辅助功能授权仍然有效；ad-hoc 签名每次构建都不同，替换后要重新授权。
+
+首次运行会引导授予**辅助功能**权限（没授权时，菜单栏鹦鹉图标的菜单第一项是「⚠︎ 需要辅助功能权限」，点它直接打开对应的系统设置页）——取词、选取手势检测和 `Esc` 关卡都依赖它。授权后无需重启应用，工具会自动重试。之后点菜单栏的鹦鹉图标 →「设置…」填入 [Google AI Studio](https://aistudio.google.com/apikey) 的 Gemini API key。
 
 - API key 存本机钥匙串；模型默认 `gemini-3.8-flash`，可在设置里改
 - 划词图标由选取手势（拖选/双击）唤出，几秒无操作自动消失，按键或点别处也会收起；拖窗口等动作偶尔会误浮图标，不理会即可（取舍见 [ADR-0002](../docs/adr/0002-icon-only-trigger.md)）
@@ -22,5 +24,6 @@ open /Applications/Readmate.app
 
 - **取词**：优先走 Accessibility（无副作用）；不支持的应用退回「模拟 `⌘C` → 读剪贴板 → 恢复原内容」，恢复写入带 `org.nspasteboard.TransientType` 标记（守规范的剪贴板历史工具会忽略）。`⌘C` 也拿不到时（如 Claude Code 这类自己接管选择、选中即复制的 TUI），若剪贴板在 15 秒内变化过则直接采用其内容；解释卡顶部会显示实际取到的选区，便于核对。
 - **上下文**：尽力而为——AX 能读到焦点元素全文时，附带选区两侧的窗口帮助消歧；读不到（多数终端）只发选区本身，此时单词解释按最常见义并点明歧义。取舍见 [ADR-0001](../docs/adr/0001-macos-context-best-effort.md)。
+- **发音**：单个英文单词的卡片顶部、选区行右侧有喇叭，点击用系统语音（美式）朗读；本机合成，不经引擎，不发送数据。
 - **Esc**：仅在解释卡可见时被本工具消费，不会漏给底下的应用（在 Claude Code 里 `Esc` 是打断键）；卡不在时完全不干预。
 - **隐私**：触发时选中文字（及可获得的上下文）发送给 Google Gemini API，除此之外不发送任何数据；查询不留任何记录。
