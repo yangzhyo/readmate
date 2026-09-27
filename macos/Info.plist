@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.yangzhyo.translator</string>
+	<string>com.yangzhyo.readmate</string>
 	<key>CFBundleName</key>
-	<string>Translator</string>
+	<string>Readmate</string>
 	<key>CFBundleDisplayName</key>
-	<string>Translator</string>
+	<string>Readmate</string>
 	<key>CFBundleExecutable</key>
-	<string>Translator</string>
+	<string>Readmate</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>

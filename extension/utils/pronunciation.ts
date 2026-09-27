@@ -1,6 +1,6 @@
 // 发音：选区的读音，「怎么读」的听觉通道。由载体自身合成，不经引擎——
 // 因而不产生任何查询，也与解释的成败无关。
-// 与 macos/Sources/Translator/Pronunciation.swift 是同一职责的两端实现，判定规则须一致。
+// 与 macos/Sources/Readmate/Pronunciation.swift 是同一职责的两端实现，判定规则须一致。
 
 /** 只有单词才发音，与音标同条件：去掉首尾标点后不含空白，且是拉丁字母词 */
 export function speakableWord(selection: string): string | null {

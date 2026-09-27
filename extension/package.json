@@ -1,5 +1,5 @@
 {
-  "name": "translator",
+  "name": "readmate",
   "description": "选中看不懂的英文单词或句子，点击浮现的划词图标获得语境化中文解释",
   "private": true,
   "version": "0.1.0",

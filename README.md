@@ -1,4 +1,4 @@
-# Translator — 英文阅读即时理解
+# Readmate — 英文阅读即时理解
 
 选中看不懂的英文，点一下浮现的「译」图标，**语境化中文解释**原地浮出——关掉立刻回到阅读。
 
@@ -52,9 +52,9 @@ Chrome 打开 `chrome://extensions` → 开启「开发者模式」→「加载�
 
 ```sh
 cd macos
-./make-app.sh     # swift build + 组装 Translator.app
-mv Translator.app /Applications/
-open /Applications/Translator.app
+./make-app.sh     # swift build + 组装 Readmate.app
+mv Readmate.app /Applications/
+open /Applications/Readmate.app
 ```
 
 首次运行按引导授予**辅助功能**权限（取词与手势检测依赖它），再从菜单栏「译」→「设置…」填入 API key。详见 [macos/README.md](./macos/README.md)。

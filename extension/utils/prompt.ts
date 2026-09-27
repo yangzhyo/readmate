@@ -1,4 +1,4 @@
-// 与 macos/Sources/Translator/Prompt.swift 手工保持同步：规则主体一致，
+// 与 macos/Sources/Readmate/Prompt.swift 手工保持同步：规则主体一致，
 // 差异仅两处——首句的场景描述，以及 macOS 版多出的「上下文可能缺失」降级规则。
 export const SYSTEM_PROMPT = `你是嵌在浏览器里的英文阅读助手。用户正在阅读英文原文，遇到了不理解的内容，会给你「选中内容」和它所在的「上下文」。
 
