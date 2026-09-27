@@ -21,7 +21,7 @@
 
 点一下，解释卡在选区旁浮出。这里原文没给 MoE 的全称，卡片注明「推断」，再用几句话说清它是什么：
 
-<img src="docs/images/card.png" width="756" alt="解释卡：Mixture of Experts（推断），混合专家模型，下面是概念说明，右上角是发音喇叭">
+<img src="docs/images/scene-abbr.png" width="756" alt="解释卡：Mixture of Experts（推断），混合专家模型，下面是概念说明，右上角是发音喇叭">
 
 ## 它给什么
 
@@ -40,6 +40,26 @@
 单个英文单词的卡片上有喇叭，点一下听美式发音。声音由系统语音在本机合成，不经引擎。
 
 解释由 Gemini Flash 实时流式生成，各载体客户端直连、无自建后端，**查询不留任何记录**。
+
+### 实拍
+
+缩写的例子见开头。下面是另外几种情况，都是在插件里实际操作后截的图。
+
+**外文单词**：`bill` 在这句话里是「开销」，不是常见的「账单」；单词带音标和发音喇叭。
+
+<img src="docs/images/scene-word.png" width="784" alt="选中 bill，卡片给出音标 /bɪl/、语境义「开销、代价」和本义「账单」">
+
+**外文句子**：先给整句翻译，再拆解句型和习语。
+
+<img src="docs/images/scene-sentence.png" width="652" alt="选中一整句英文，卡片给出中文翻译，并拆解 It's not that…, it's that… 句型和 all along">
+
+**中文术语**：选区是中文时不翻译，只讲清「护城河」在投资语境里指什么。
+
+<img src="docs/images/scene-zh.png" width="784" alt="在中文文章里选中「护城河」，卡片解释它是企业抵御竞争的持久优势">
+
+**其他语言**：日文等外文同样给中文翻译和难点拆解。
+
+<img src="docs/images/scene-ja.png" width="604" alt="选中一句日文，卡片给出中文翻译，并解释「推論コスト」和句尾句型">
 
 ## 两个载体
 
