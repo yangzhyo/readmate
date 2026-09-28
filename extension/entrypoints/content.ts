@@ -10,6 +10,10 @@ import { speak, speakableWord, stopSpeaking, warmUpVoices } from '../utils/pronu
 
 export default defineContentScript({
   matches: ['<all_urls>'],
+  // 正文可能在 iframe 里（如 Claude Artifact 整页都在跨域 iframe 中）；
+  // about:blank、srcdoc 这类无独立地址的 iframe 要靠 matchOriginAsFallback 才注入
+  allFrames: true,
+  matchOriginAsFallback: true,
   main() {
     warmUpVoices();
     document.addEventListener('mouseup', onMouseUp);
@@ -17,6 +21,9 @@ export default defineContentScript({
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed) icon?.hide();
     });
+    // 每个 frame 各有一份选区与图标：读者点进别的 frame 时本 frame 的选区不会收起，
+    // 图标得跟着焦点离开一起收起，否则页面上会同时挂着两个图标
+    window.addEventListener('blur', () => icon?.hide());
   },
 });
 
