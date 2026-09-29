@@ -1,3 +1,4 @@
+import { installEventIsolation, isolateFromPage } from '../utils/event-isolation';
 import { extractContext } from '../utils/extract-context';
 import { parrotSvg } from '../utils/parrot';
 import {
@@ -14,7 +15,10 @@ export default defineContentScript({
   // about:blank、srcdoc 这类无独立地址的 iframe 要靠 matchOriginAsFallback 才注入
   allFrames: true,
   matchOriginAsFallback: true,
+  // 事件隔离要赶在页面脚本注册监听之前
+  runAt: 'document_start',
   main() {
+    installEventIsolation();
     warmUpVoices();
     document.addEventListener('mouseup', onMouseUp);
     document.addEventListener('selectionchange', () => {
@@ -53,10 +57,6 @@ function onTrigger(): void {
 }
 
 function onMouseUp(event: MouseEvent): void {
-  const path = event.composedPath();
-  if (icon && path.includes(icon.host)) return;
-  if (card && path.includes(card.host)) return;
-
   // 等浏览器完成本次选区更新（双击选词等）再判断
   setTimeout(() => {
     const selection = window.getSelection();
@@ -92,6 +92,7 @@ class TriggerIcon {
     button.addEventListener('mousedown', (event) => event.preventDefault());
     button.addEventListener('click', () => onActivate());
     this.host.style.cssText = 'position:absolute;z-index:2147483647;display:none;';
+    isolateFromPage(this.host);
     document.documentElement.append(this.host);
   }
 
@@ -132,6 +133,7 @@ class Card {
     this.bodyEl = shadow.querySelector('.body')!;
     if (word) shadow.querySelector('.speak')!.addEventListener('click', () => speak(word));
     this.position(anchor);
+    isolateFromPage(this.host);
     document.documentElement.append(this.host);
     this.showStatus('思考中…');
 

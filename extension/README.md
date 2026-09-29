@@ -41,6 +41,7 @@ entrypoints/
 ├── content.ts       # 选区捕获、Shadow DOM 解释卡（流式渲染 / Esc / 点外关闭 / 重试）
 └── options/         # 设置页：API key + 模型，存 chrome.storage.local（仅本机）
 utils/
+├── event-isolation.ts  # 图标和卡片上的鼠标事件不传给页面，免得页面当作「点在外面」关掉抽屉、弹层
 ├── extract-context.ts  # 上下文提取：所在段 + 前后各一段，上限 3000 字符
 ├── gemini.ts           # streamGenerateContent SSE 客户端
 ├── prompt.ts           # 系统提示词（语境化解释规则）
